@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Interactive Split Panel Design</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <div class="split-container">
+
+            <div class="panel right-panel hideScrollbar">
+
+                <div class="panel-header">
+
+                    <div class="panel-icon">
+
+                        <i class="fas fa-upload"></i>
+
+                    </div>
+
+                    <h2 class="panel-title">Development Panel</h2>
+
+                </div>
+
+                <div class="panel-content">
+
+                    <div class="card">
+
+                        <h3 class="card-title"><i class="fas fa-laptop-code"></i> Code Environment</h3>
+
+                        <p class="card-content">Powerful development tools with live preview and debugging capabilities.
+                        </p>
+
+                        <div class="features">
+
+                            <label class="file-upload feature">
+
+                                <input type="file" id="fileInput" accept=".xlsx, .txt" />
+
+                                <span class="file-btn">Choose File</span>
+
+                                <span class="file-name">No file chosen</span>
+
+                            </label>
+
+                            Sheet Names
+
+                            <select id="worksheetName" class="feature">
+
+                                <option value="" hidden>No sheet chosen</option>
+
+                            </select>
+
+                            <button class="action-btn" id="fetchTeachersData">Fetch Teachers Data</button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="split-container">
+
+            <div class="panel hideScrollbar">
+
+                <div class="panel-header spaceBetween" style="margin-bottom: 0;">
+
+                    <h2 class="panel-title" id="sheetName"></h2>
+
+                </div>
+
+                <div class="panel-content">
+
+                    <table class="styled-table" id="DataTable">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>Teacher Name</th>
+
+                                <th>Subjects</th>
+
+                                <th>Classes</th>
+
+                                <th>Period Per Day</th>
+
+                                <th>Period Per Week</th>
+
+                            </tr>
+
+                        </thead>
+
+                        <tbody></tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="container" style="margin-top: 30px;">
+
+        <div class="split-container">
+
+            <div class="panel left-panel hideScrollbar">
+
+                <div class="panel-header">
+
+                    <div class="panel-icon">
+
+                        <i class="fas fa-palette"></i>
+
+                    </div>
+
+                    <h2 class="panel-title">Design Panel</h2>
+
+                </div>
+
+                <div class="panel-content">
+
+                    <div class="card">
+
+                        <h3 class="card-title"><i class="fas fa-brush"></i> Creative Tools</h3>
+
+                        <p class="card-content">Access our suite of design tools to create stunning visuals for any
+                            project.</p>
+
+                        <div class="features">
+
+                            <select id="teacherNameDropdown" class="feature">
+
+                                <option value="" hidden>-select-</option>
+
+                            </select>
+
+                            <button class="action-btn" id="showTeacherTimeTable">Create Time Table</button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="panel right-panel hideScrollbar">
+
+                <div class="panel-header">
+
+                    <div class="panel-icon">
+
+                        <i class="fas fa-code"></i>
+
+                    </div>
+
+                    <h2 class="panel-title">Development Panel</h2>
+
+                </div>
+
+                <div class="panel-content">
+
+                    <div class="card">
+
+                        <h3 class="card-title"><i class="fas fa-laptop-code"></i> Code Environment</h3>
+
+                        <p class="card-content">Powerful development tools with live preview and debugging capabilities.
+                        </p>
+
+                        <div class="features">
+
+                            <select id="classNameDropdown" class="feature">
+
+                                <option value="" hidden>-select-</option>
+
+                            </select>
+
+                            <button class="action-btn" id="classTeacherTimeTable">Create Time Table</button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="split-container">
+
+            <div class="panel left-panel hideScrollbar">
+
+                <div class="panel-header spaceBetween" style="margin-bottom: 0;">
+
+                    <h2 class="panel-title" id="tableTitle"></h2>
+
+                    <div class="btn-container">
+
+                        <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;"
+                            id="customizeTable">Edit</button>
+
+                        <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;"
+                            id="cancelUpdate">Cancel</button>
+
+                    </div>
+
+                </div>
+
+                <div class="panel-content" id="TeacherTimeTableContainer">
+
+                    <table class="styled-table timetable" id="TeacherTimeTable">
+
+                        <tbody>
+
+                            <tr>
+
+                                <td></td>
+
+                                <td><span>Period 1</span><span>09:30AM 10:10AM</span></td>
+
+                                <td><span>Period 2</span><span>10:10AM 10:50AM</span></td>
+
+                                <td rowspan="6" style="writing-mode: sideways-lr"></td>
+
+                                <td><span>Period 3</span><span>11:00AM 11:40AM</span></td>
+
+                                <td><span>Period 4</span><span>11:40AM 12:20PM</span></td>
+
+                                <td rowspan="6" style="writing-mode: sideways-lr"></td>
+
+                                <td><span>Period 5</span><span>01:00PM 02:00PM</span></td>
+
+                                <td><span>Period 6</span><span>02:00PM 02:40PM</span></td>
+
+                                <td rowspan="6" style="writing-mode: sideways-lr"></td>
+
+                                <td><span>Period 7</span><span>02:40PM 03:30PM</span></td>
+
+                                <td><span>Period 8</span><span>03:30PM 04:10PM</span></td>
+
+                            </tr>
+
+                            <tr data-rowIndex="0">
+
+                                <td>Monday</td>
+
+                                <td data-colIndex="0"></td>
+
+                                <td data-colIndex="1"></td>
+
+                                <td data-colIndex="2"></td>
+
+                                <td data-colIndex="3"></td>
+
+                                <td data-colIndex="4"></td>
+
+                                <td data-colIndex="5"></td>
+
+                                <td data-colIndex="6"></td>
+
+                                <td data-colIndex="7"></td>
+
+                            </tr>
+
+                            <tr data-rowIndex="1">
+
+                                <td>Tuesday</td>
+
+                                <td data-colIndex="0"></td>
+
+                                <td data-colIndex="1"></td>
+
+                                <td data-colIndex="2"></td>
+
+                                <td data-colIndex="3"></td>
+
+                                <td data-colIndex="4"></td>
+
+                                <td data-colIndex="5"></td>
+
+                                <td data-colIndex="6"></td>
+
+                                <td data-colIndex="7"></td>
+
+                            </tr>
+
+                            <tr data-rowIndex="2">
+
+                                <td>Wednesday</td>
+
+                                <td data-colIndex="0"></td>
+
+                                <td data-colIndex="1"></td>
+
+                                <td data-colIndex="2"></td>
+
+                                <td data-colIndex="3"></td>
+
+                                <td data-colIndex="4"></td>
+
+                                <td data-colIndex="5"></td>
+
+                                <td data-colIndex="6"></td>
+
+                                <td data-colIndex="7"></td>
+
+                            </tr>
+
+                            <tr data-rowIndex="3">
+
+                                <td>Thursday</td>
+
+                                <td data-colIndex="0"></td>
+
+                                <td data-colIndex="1"></td>
+
+                                <td data-colIndex="2"></td>
+
+                                <td data-colIndex="3"></td>
+
+                                <td data-colIndex="4"></td>
+
+                                <td data-colIndex="5"></td>
+
+                                <td data-colIndex="6"></td>
+
+                                <td data-colIndex="7"></td>
+
+                            </tr>
+
+                            <tr data-rowIndex="4">
+
+                                <td>Friday</td>
+
+                                <td data-colIndex="0"></td>
+
+                                <td data-colIndex="1"></td>
+
+                                <td data-colIndex="2"></td>
+
+                                <td data-colIndex="3"></td>
+
+                                <td data-colIndex="4"></td>
+
+                                <td data-colIndex="5"></td>
+
+                                <td data-colIndex="6"></td>
+
+                                <td data-colIndex="7"></td>
+
+                            </tr>
+
+                        </tbody>
+
+                    </table>
+
+                    <div class="table-editor hideScrollbar"></div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <footer>
+            <p id="remainingPeriod"></p>
+        </footer>
+
+    </div>
+
+    <div id="popup" class="popup hidden">
+
+        <div class="popup-wrapper card">
+
+            <div class="popup-header">
+
+                <div class="title"></div>
+
+                <div class="close"><i class="fa-solid fa-xmark"></i></div>
+
+            </div>
+
+            <div class="popup-content"></div>
+
+            <div class="popup-footer"></div>
+
+        </div>
+
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <script src="utility.js"></script>
+
+    <script src="popup.js"></script>
+
+    <script src="table.js"></script>
+
+    <script src="timetable.js"></script>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>

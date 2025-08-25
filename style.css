@@ -1,0 +1,701 @@
+:root {
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --text-color: #fff;
+
+    --body-bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    --container-bg: rgba(0, 0, 0, 0.25);
+    --container-blur: 10px;
+    --container-radius: 20px;
+    --container-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+    --container-border: rgba(255, 255, 255, 0.1);
+
+    --header-bg: rgba(0, 0, 0, 0.2);
+    --header-border: rgba(255, 255, 255, 0.1);
+
+    --gradient-start: #89f7fe 0%;
+    --gradient-end: #66a6ff 100%;
+
+    --panel-padding: 30px;
+    --panel-transition: all 0.3s ease;
+    --panel-bg-left: rgba(0, 86, 122, 0.25);
+    --panel-bg-right: rgba(86, 11, 91, 0.25);
+
+    --icon-bg: rgba(255, 255, 255, 0.1);
+
+    --card-bg: rgba(255, 255, 255, 0.05);
+    --card-hover-bg: rgba(255, 255, 255, 0.1);
+    --card-border: rgba(255, 255, 255, 0.05);
+    --card-shadow: rgba(0, 0, 0, 0.2);
+
+    --feature-bg: rgba(255, 255, 255, 0.05);
+
+    --action-btn-shadow: rgba(0, 0, 0, 0.3);
+    --action-btn-hover-shadow: rgba(0, 0, 0, 0.4);
+
+    --footer-bg: rgba(0, 0, 0, 0.2);
+    --footer-border: rgba(255, 255, 255, 0.1);
+
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: var(--font-family);
+}
+
+body {
+    background: var(--body-bg-gradient);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    color: var(--text-color);
+    overflow-x: hidden;
+}
+
+.container {
+    width: 100%;
+    max-width: 1200px;
+    background: var(--container-bg);
+    backdrop-filter: blur(var(--container-blur));
+    border-radius: var(--container-radius);
+    overflow: hidden;
+    box-shadow: var(--container-shadow);
+    border: 1px solid var(--container-border);
+}
+
+header {
+    padding: 25px;
+    text-align: center;
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--header-border);
+}
+
+h1 {
+    font-size: 2.8rem;
+    margin-bottom: 10px;
+    background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.subtitle {
+    font-size: 1.2rem;
+    opacity: 0.8;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.split-container {
+    display: flex;
+    /* height: 65vh; */
+    position: relative;
+}
+
+.panel {
+    user-select: none;
+    flex: 1;
+    padding: var(--panel-padding);
+    display: flex;
+    flex-direction: column;
+    transition: var(--panel-transition);
+}
+
+.hideScrollbar {
+    overflow: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.hideScrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.left-panel {
+    background: var(--panel-bg-left);
+}
+
+.right-panel {
+    background: var(--panel-bg-right);
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--panel-border);
+}
+
+.panel-icon {
+    width: 50px;
+    height: 50px;
+    background: var(--icon-bg);
+    border-radius: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-right: 15px;
+    font-size: 24px;
+    color: var(--gradient-start);
+}
+
+.right-panel .panel-icon {
+    color: var(--gradient-end);
+}
+
+.panel-title {
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.panel-content {
+    flex: 1;
+}
+
+.card {
+    background: var(--card-bg);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: var(--panel-transition);
+    border: 1px solid var(--card-border);
+}
+
+.card:hover {
+    /* transform: translateY(-5px); */
+    background: var(--card-hover-bg);
+    box-shadow: 0 10px 20px var(--card-shadow);
+}
+
+.card-title {
+    font-size: 1.3rem;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.card-title i {
+    margin-right: 10px;
+    width: 30px;
+    height: 30px;
+    background: var(--icon-bg);
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.card-content {
+    opacity: 0.9;
+    line-height: 1.6;
+}
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.feature {
+    display: flex;
+    align-items: center;
+    background: var(--feature-bg);
+    padding: 10px 15px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+}
+
+.feature i {
+    margin-right: 10px;
+    color: var(--gradient-start);
+}
+
+.right-panel .feature i {
+    color: var(--gradient-end);
+}
+
+.stats {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+    margin: 25px 0;
+}
+
+.stat {
+    padding: 15px;
+}
+
+.stat-value {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+    background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    opacity: 0.7;
+}
+
+.action-btn {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    text-align: center;
+    background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+    color: var(--text-color);
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--panel-transition);
+    margin-top: 20px;
+    box-shadow: 0 5px 15px var(--action-btn-shadow);
+}
+
+.action-btn:hover {
+    box-shadow: 0 8px 20px var(--action-btn-hover-shadow);
+}
+
+footer {
+    text-align: center;
+    padding: 25px;
+    background: var(--footer-bg);
+    border-top: 1px solid var(--footer-border);
+    font-size: 0.9rem;
+    opacity: 0.7;
+}
+
+/* Container & positioning */
+.multi-select-dropdown {
+    position: relative;
+    width: 100%;
+    cursor: pointer;
+}
+
+/* Trigger uses .feature base styles already */
+.multi-select-dropdown .dropdown-input {
+    width: 100%;
+    min-height: 2.4em;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+/* Placeholder text */
+.multi-select-dropdown .placeholder {
+    opacity: 0.6;
+    user-select: none;
+}
+
+/* Dropdown panel */
+.dropdown-list {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    padding: 10px;
+    background: var(--panel-bg-left);
+    backdrop-filter: blur(6px);
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    z-index: 99;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 8px;
+    /* display: grid; */
+}
+
+/* Show when open */
+.multi-select-dropdown.open .dropdown-list {
+    display: grid;
+}
+
+/* Make chips inside input look like tiny features */
+.multi-select-dropdown .dropdown-input .feature {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+}
+
+/* Highlight selected in list */
+.dropdown-list .feature.selected {
+    background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+    color: var(--text-color);
+}
+
+/* 1) Make the dropdown wrapper a positioned, full-width element */
+.multi-select-dropdown {
+    position: relative;
+    width: 100%;
+}
+
+.multi-select-dropdown:has(.dropdown-list)::after {
+    content: "\25BE";
+    /* ▼ */
+    position: absolute;
+    top: 50%;
+    right: 1.5em;
+    /* adjust to match container’s right padding */
+    transform: translateY(-50%) rotate(0deg);
+    font-size: 0.9rem;
+    color: var(--text-color);
+    pointer-events: none;
+    transition: var(--panel-transition);
+}
+
+/* 3) Flip arrow when open */
+.multi-select-dropdown.open::after {
+    transform: translateY(-50%) rotate(180deg);
+    /* ▲ */
+}
+
+/* Style the text input exactly like a “feature” chip */
+input.feature {
+    display: block;
+    width: 100%;
+    padding: 12px 18px;
+    font-size: 1rem;
+    color: var(--text-color);
+
+    background: var(--feature-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 10px;
+
+    outline: none;
+    transition: var(--panel-transition);
+    backdrop-filter: blur(6px);
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+
+}
+
+input.feature::placeholder {
+    color: var(--input-placeholder);
+}
+
+input.feature:focus {
+    border-color: var(--input-focus-border);
+    background: var(--input-focus-bg);
+    box-shadow: 0 0 10px var(--input-focus-shadow);
+}
+
+/* Reuse your existing “feature” look for a dropdown */
+select.feature {
+    display: block;
+    width: 100%;
+    padding: 12px 18px;
+    font-size: 1rem;
+    color: var(--text-color);
+
+    background: var(--feature-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 10px;
+    outline: none;
+    transition: var(--panel-transition);
+    backdrop-filter: blur(6px);
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+
+    /* remove native arrow */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+
+}
+
+select.feature::-ms-expand {
+    display: none;
+    /* hide IE arrow */
+}
+
+select.feature:focus {
+    border-color: var(--input-focus-border);
+    background: var(--input-focus-bg);
+    box-shadow: 0 0 10px var(--input-focus-shadow);
+}
+
+select.feature>option {
+    background: var(--panel-bg-left);
+    backdrop-filter: blur(6px);
+}
+
+.feature .action-btn {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
+.grid {
+    display: grid;
+    gap: 15px;
+}
+
+.spaceBetween {
+    justify-content: space-between;
+}
+
+.column {
+    grid-template-columns: 1fr 1fr 0.75fr;
+}
+
+.grid-col-2 {
+    grid-template-columns: 1fr 0.25fr;
+}
+
+.file-upload {
+    display: inline-flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px 15px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    backdrop-filter: blur(var(--container-blur));
+    box-shadow: 0 5px 15px var(--card-shadow);
+    transition: var(--panel-transition);
+    cursor: pointer;
+}
+
+/* Hide native file input */
+.file-upload input[type="file"] {
+    display: none;
+}
+
+/* Custom button */
+.file-btn {
+    padding: 10px 20px;
+    background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
+    color: var(--text-color);
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    box-shadow: 0 5px 15px var(--action-btn-shadow);
+    transition: var(--panel-transition);
+}
+
+/* Button hover/focus */
+.file-btn:hover,
+.file-btn:focus-visible {
+    box-shadow: 0 8px 20px var(--action-btn-hover-shadow);
+    outline: none;
+}
+
+/* Filename display */
+.file-name {
+    font-size: 0.9rem;
+    opacity: 0.8;
+    color: var(--text-color);
+    user-select: none;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Entire label hover effect */
+.file-upload:hover {
+    background: var(--card-hover-bg);
+}
+
+.styled-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    overflow: hidden;
+    box-shadow: 0 5px 15px var(--card-shadow);
+    transition: var(--panel-transition);
+}
+
+.styled-table thead {
+    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+}
+
+.styled-table.timetable.editing tbody:hover {
+    cursor: grab;
+}
+
+.styled-table thead th,
+.styled-table.timetable.editing tbody tr:first-child td,
+.styled-table.timetable.editing tbody td:first-child {
+    padding: 15px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-color);
+    cursor: default;
+}
+
+.styled-table.timetable.editing tbody tr:first-child td:hover,
+.styled-table.timetable.editing tbody td:first-child:hover {
+    background: unset;
+}
+
+.styled-table tbody tr {
+    transition: var(--panel-transition);
+}
+
+.styled-table tbody tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.styled-table td {
+    padding: 12px 15px;
+    font-size: 0.9rem;
+    color: var(--text-color);
+    border: 1px solid var(--card-border);
+    text-align: center;
+}
+
+.styled-table.timetable.editing td:hover {
+    background: var(--card-hover-bg);
+}
+
+.styled-table td span:first-child {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.styled-table td span:last-child {
+    display: block;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+    /* Subtle contrast */
+    margin-top: 4px;
+}
+
+.styled-table td span {
+    pointer-events: none;
+}
+
+.styled-table tfoot td {
+    padding: 12px 15px;
+    font-weight: 600;
+    background: var(--header-bg);
+    border-top: 1px solid var(--footer-border);
+}
+
+@media (max-width: 768px) {
+    .split-container {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .panel {
+        min-height: 50vh;
+    }
+
+    h1 {
+        font-size: 2rem;
+    }
+
+    .features {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+.btn-container {
+    display: flex;
+    gap: 16px;
+}
+
+.panel-content#TeacherTimeTableContainer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+}
+
+.panel-content.editing {
+    gap: 15px;
+}
+
+.panel-content .table-editor {
+    width: 0px;
+    transition: all 0.3s ease;
+}
+
+.panel-content.editing .table-editor {
+    width: 200px;
+    background: var(--card-bg);
+    padding: 16px;
+    cursor: grab;
+}
+
+.unreservedPeriod {
+    padding: 8px;
+    background: var(--card-bg);
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.popup-wrapper {
+    margin: 0;
+    background: var(--body-bg-gradient);
+}
+
+.popup-wrapper:hover {
+    background: var(--body-bg-gradient);
+}
+
+.popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 15px;
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.popup-content {
+    display: grid;
+    gap: 15px;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+}
+
+.popup-footer {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    text-align: center;
+    padding-top: 25px;
+}
+
+.hidden {
+    display: none;
+}
+
+.close {
+    font-size: 24px;
+    cursor: pointer;
+}
