@@ -1,15 +1,43 @@
-document.addEventListener('DOMContentLoaded', () => { 
-    // DOM Elements 
-    const inputFile = document.getElementById('fileInput'); const fileNameSpan = document.querySelector('.file-name'); const sheetNameDropdown = document.querySelector('#worksheetName'); const sheetNameDisplay = document.getElementById("sheetName"); const dataTable = new Table(document.getElementById("DataTable")); const teacherTimeTable = new Table(document.getElementById("TeacherTimeTable")); const timeTableTitle = document.getElementById("tableTitle"); const customizeTableBtn = document.getElementById("customizeTable"); const cancelUpdateBtn = document.getElementById("cancelUpdate"); const fetchTeachersDataBtn = document.getElementById("fetchTeachersData"); const teacherNameDropdown = document.getElementById("teacherNameDropdown"); const classNameDropdown = document.getElementById("classNameDropdown"); const showTTimeTableBtn = document.getElementById("showTeacherTimeTable"); const showCTimeTableBtn = document.getElementById("classTeacherTimeTable"); const remainingPeriodEl = document.getElementById("remainingPeriod"); const unReservedPeriods = document.querySelector(".table-editor");
+if (sessionStorage.getItem("isLoggedIn") !== "true") { window.location.href = "./index.html"; }
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    const element = {
+        dataFile: document.getElementById('fileInput'),
+        dataFileName: document.querySelector('.file-name'),
+        sheetsNameDropdown: document.querySelector('#worksheetName'),
+        previewTitle: document.getElementById("sheetName"),
+        previewTable: document.getElementById("DataTable"),
+
+    }
+
+    /* DOM Elements*/
+    const inputFile = document.getElementById('fileInput');
+    const fileNameSpan = document.querySelector('.file-name');
+    const sheetNameDropdown = document.querySelector('#worksheetName');
+    const sheetNameDisplay = document.getElementById("sheetName");
+    const dataTable = new Table(document.getElementById("DataTable"));
+    const teacherTimeTable = new Table(document.getElementById("TeacherTimeTable"));
+    const timeTableTitle = document.getElementById("tableTitle");
+    const timeTableSubTitle = document.getElementById("tutorName");
+    const customizeTableBtn = document.getElementById("customizeTable");
+    const cancelUpdateBtn = document.getElementById("cancelUpdate");
+    const reserveFirstPeriod = document.getElementById("tutorFirstPeriod");
+    const fetchTeachersDataBtn = document.getElementById("fetchTeachersData");
+    const teacherNameDropdown = document.getElementById("teacherNameDropdown");
+    const classNameDropdown = document.getElementById("classNameDropdown");
+    const showTTimeTableBtn = document.getElementById("showTeacherTimeTable");
+    const showCTimeTableBtn = document.getElementById("classTeacherTimeTable");
+    const remainingPeriodEl = document.getElementById("remainingPeriod");
+    const unReservedPeriods = document.querySelector(".table-editor");
 
     let school = new School();
     let workbook;
 
     const popup = new Popup();
 
-    // Utility functions
-    const populateDropdown = (dropdown, items) => {
-        dropdown.innerHTML = "";
+    const populateDropdown = (dropdown, items, joinDropEl = false) => {
+        if (!joinDropEl) dropdown.innerHTML = "";
         items.forEach(item => {
             dropdown.innerHTML += `<option value="${item}">${item}</option>`;
         });
@@ -28,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const DisplayTimeTable = (timeTable) => {
         for (let day = 0; day < 5; day++) {
             for (let period = 0; period < 8; period++) {
-                teacherTimeTable.ChangeCellValue(day, period, (typeof timeTable[day][period] === "object") ? classFormatter(timeTable[day][period]) : blankFormatter(timeTable[day][period]))
+                teacherTimeTable.ChangeCellValue(day, period, (typeof timeTable[day][period] === "object") ? Array.isArray(timeTable[day][period]) ? timeTable[day][period].join(", ") : classFormatter(timeTable[day][period]) : blankFormatter(timeTable[day][period]))
             }
         }
     }
@@ -41,18 +69,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (initializeEventHandlers.called) return;
         initializeEventHandlers.called = true;
 
-        // Sheet Selection Validation
         sheetNameDropdown.addEventListener('change', () => {
             const worksheet = workbook.Sheets[sheetNameDropdown.value];
             const json = XLSX.utils.sheet_to_json(worksheet);
 
-            const requiredFields = ["TeacherName", "Subject", "Classes"];
+            const requiredFields = ["TeacherName", "Subject", "Classes", "PeriodPerDay", "PeriodPerWeek", "TutorTo"];
             const isValid = requiredFields.every(field => json[0][field] !== undefined);
 
             if (!isValid) console.warn("Data format mismatch. Choose a different sheet.");
         });
 
-        // Load Teacher Data
         fetchTeachersDataBtn.addEventListener("click", () => {
             const selectedSheet = sheetNameDropdown.value;
             if (!selectedSheet) return;
@@ -62,23 +88,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const worksheet = workbook.Sheets[selectedSheet];
             const teacherDetails = XLSX.utils.sheet_to_json(worksheet);
 
-            teacherDetails.forEach(({ TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek }) => {
+            teacherDetails.forEach(({ TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek, TutorTo }) => {
                 const classList = Classes.replace(/\s/g, '').split(",");
-                const newTeacher = new Teacher(TeacherName, Subject, classList, PeriodPerDay, PeriodPerWeek);
+                const newTeacher = new Teacher(TeacherName, Subject, classList, PeriodPerDay, PeriodPerWeek, TutorTo);
                 school.NewTeacher(newTeacher);
 
-                dataTable.AddRow([TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek]);
-                teacherNameDropdown.innerHTML += `<option value="${TeacherName}">${TeacherName}</option>`;
+                dataTable.AddRow([TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek, TutorTo]);
             });
 
+            populateDropdown(teacherNameDropdown, Object.keys(school.GetTeachers()));
             populateDropdown(classNameDropdown, Object.keys(school.GetClasses()));
             sheetNameDisplay.scrollIntoView({ behavior: "smooth" });
-            console.log(school.GetTeachers(), school.GetClasses(), school.Clone());
+            if (reserveFirstPeriod.checked) school.test();
+            school.GenerateTimetable();
+            console.log(school.GetTeachers(), school.GetClasses());
         });
 
         let state = "idle";
 
-        // Show Teacher TimeTable
         showTTimeTableBtn.addEventListener("click", async () => {
             if (state == "edit") {
                 const response = await popup.Warning("Leaving edit mode will discard any unsaved edits. Continue?");
@@ -93,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const remainingData = teacher.GetReservedPeriodCountAllClass();
 
             timeTableTitle.textContent = selectedTeacherName;
+            timeTableSubTitle.textContent = `(${school.GetTeacher(selectedTeacherName).TutorFor()})`;
             customizeTableBtn.style.display = "none";
             document.getElementById("TeacherTimeTableContainer").classList.remove("editing");
             document.getElementById("TeacherTimeTable").classList.remove("editing");
@@ -194,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
             customizeTableBtn.removeEventListener("click", OnClickUpdate);
 
             teacherTimeTable.GetCells().forEach(cell => {
-                cell.removeEventListener("dragover", OnDragOver); // Required
+                cell.removeEventListener("dragover", OnDragOver);
                 cell.removeEventListener("drop", OnDrop);
                 cell.removeEventListener("dblclick", OnDoubleClick);
             });
@@ -214,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cancelUpdateBtn.style.display = "none";
 
             teacherTimeTable.GetCells().forEach(cell => {
-                cell.removeEventListener("dragover", OnDragOver); // Required
+                cell.removeEventListener("dragover", OnDragOver);
                 cell.removeEventListener("drop", OnDrop);
                 cell.removeEventListener("dblclick", OnDoubleClick);
             });
@@ -258,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             teacherTimeTable.GetCells().forEach(cell => {
-                cell.addEventListener("dragover", OnDragOver); // Required
+                cell.addEventListener("dragover", OnDragOver);
                 cell.addEventListener("drop", OnDrop);
                 cell.addEventListener("dblclick", OnDoubleClick);
             });
@@ -266,7 +294,6 @@ document.addEventListener('DOMContentLoaded', () => {
             customizeTableBtn.addEventListener("click", OnClickUpdate);
         }
 
-        // Show Class TimeTable
         showCTimeTableBtn.addEventListener("click", async () => {
             const selectedClassName = classNameDropdown.value;
             if (!selectedClassName) return;
@@ -279,7 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state = "idle";
 
             teacherTimeTable.GetCells().forEach(cell => {
-                cell.removeEventListener("dragover", OnDragOver); // Required
+                cell.removeEventListener("dragover", OnDragOver);
 
                 cell.removeEventListener("drop", OnDrop);
             });
@@ -297,11 +324,12 @@ document.addEventListener('DOMContentLoaded', () => {
             timeTableData = _class.GetTimeTable();
 
             timeTableTitle.textContent = selectedClassName;
+            timeTableSubTitle.textContent = `(${_class.GetTutor().name})`;
             customizeTableBtn.style.display = "block";
 
             for (let day = 0; day < 5; day++) {
                 for (let period = 0; period < 8; period++) {
-                    teacherTimeTable.ChangeCellValue(day, period, classFormatter(timeTableData[day][period]))
+                    teacherTimeTable.ChangeCellValue(day, period, classFormatter(timeTableData[day][period]));
                 }
             }
 
@@ -315,7 +343,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initializeEventHandlers.called = false;
 
-    // File Import Logic
     inputFile.addEventListener("change", (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -328,8 +355,8 @@ document.addEventListener('DOMContentLoaded', () => {
             workbook = XLSX.read(data, { type: "array" });
 
             populateDropdown(sheetNameDropdown, workbook.SheetNames);
+            sheetNameDropdown.focus();
 
-            // Attach listeners only after workbook is parsed
             initializeEventHandlers();
         };
 
@@ -337,3 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 });
+
+// Known bugs: // sometime it not assing properly, it not assign it period avaliable to assign, need to figure out why
+
+// TO-DO: // -add classteacher and assing to first period of their class (How to: need to seperate the fetch and timetable generate btn, //                                                                      add toggle btn to select whether to assing class teacher to first period or not) // -need to change the desing of the timetable generator page

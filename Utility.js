@@ -10,7 +10,7 @@ function ArrayToString(array) {
 function GetElementCount(array, element) {
     if (array === undefined || array.length === 0) return 0;
 
-    let count = 0; array.forEach(item => { if (item.subject === element) count++; });
+    let count = 0; array.forEach(item => { if (!item) return; if (item.subject === element) count++; });
 
     return count;
 }
@@ -30,6 +30,8 @@ class UniqueRandom {
         return value;
 
     }
+
+    usedSize() { return this.used.size; }
 }
 
 function isEqual(arr1, arr2) {

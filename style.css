@@ -1,6 +1,6 @@
 :root {
     --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    --text-color: #fff;
+    --text-color: black;
 
     --body-bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
     --container-bg: rgba(0, 0, 0, 0.25);
@@ -45,12 +45,8 @@
 }
 
 body {
-    background: var(--body-bg-gradient);
+    /* background: var(--body-bg-gradient); */
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
     padding: 20px;
     color: var(--text-color);
     overflow-x: hidden;
@@ -58,8 +54,7 @@ body {
 
 .container {
     width: 100%;
-    max-width: 1200px;
-    background: var(--container-bg);
+    /* max-width: 1200px; / / background: var(--container-bg); */
     backdrop-filter: blur(var(--container-blur));
     border-radius: var(--container-radius);
     overflow: hidden;
@@ -121,7 +116,7 @@ h1 {
 }
 
 .right-panel {
-    background: var(--panel-bg-right);
+    background: var(--panel-bg-left);
 }
 
 .panel-header {
@@ -167,8 +162,8 @@ h1 {
     border: 1px solid var(--card-border);
 }
 
-.card:hover {
-    /* transform: translateY(-5px); */
+/* .card:hover, */
+.card {
     background: var(--card-hover-bg);
     box-shadow: 0 10px 20px var(--card-shadow);
 }
@@ -278,14 +273,12 @@ footer {
     opacity: 0.7;
 }
 
-/* Container & positioning */
 .multi-select-dropdown {
     position: relative;
     width: 100%;
     cursor: pointer;
 }
 
-/* Trigger uses .feature base styles already */
 .multi-select-dropdown .dropdown-input {
     width: 100%;
     min-height: 2.4em;
@@ -295,13 +288,11 @@ footer {
     gap: 6px;
 }
 
-/* Placeholder text */
 .multi-select-dropdown .placeholder {
     opacity: 0.6;
     user-select: none;
 }
 
-/* Dropdown panel */
 .dropdown-list {
     display: none;
     position: absolute;
@@ -317,27 +308,22 @@ footer {
     z-index: 99;
     grid-template-columns: repeat(1, 1fr);
     gap: 8px;
-    /* display: grid; */
 }
 
-/* Show when open */
 .multi-select-dropdown.open .dropdown-list {
     display: grid;
 }
 
-/* Make chips inside input look like tiny features */
 .multi-select-dropdown .dropdown-input .feature {
     padding: 4px 8px;
     font-size: 0.8rem;
 }
 
-/* Highlight selected in list */
 .dropdown-list .feature.selected {
     background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
     color: var(--text-color);
 }
 
-/* 1) Make the dropdown wrapper a positioned, full-width element */
 .multi-select-dropdown {
     position: relative;
     width: 100%;
@@ -345,11 +331,9 @@ footer {
 
 .multi-select-dropdown:has(.dropdown-list)::after {
     content: "\25BE";
-    /* ▼ */
     position: absolute;
     top: 50%;
     right: 1.5em;
-    /* adjust to match container’s right padding */
     transform: translateY(-50%) rotate(0deg);
     font-size: 0.9rem;
     color: var(--text-color);
@@ -357,13 +341,10 @@ footer {
     transition: var(--panel-transition);
 }
 
-/* 3) Flip arrow when open */
 .multi-select-dropdown.open::after {
     transform: translateY(-50%) rotate(180deg);
-    /* ▲ */
 }
 
-/* Style the text input exactly like a “feature” chip */
 input.feature {
     display: block;
     width: 100%;
@@ -392,7 +373,6 @@ input.feature:focus {
     box-shadow: 0 0 10px var(--input-focus-shadow);
 }
 
-/* Reuse your existing “feature” look for a dropdown */
 select.feature {
     display: block;
     width: 100%;
@@ -408,7 +388,6 @@ select.feature {
     backdrop-filter: blur(6px);
     box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
 
-    /* remove native arrow */
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
@@ -417,7 +396,6 @@ select.feature {
 
 select.feature::-ms-expand {
     display: none;
-    /* hide IE arrow */
 }
 
 select.feature:focus {
@@ -468,12 +446,10 @@ select.feature>option {
     cursor: pointer;
 }
 
-/* Hide native file input */
 .file-upload input[type="file"] {
     display: none;
 }
 
-/* Custom button */
 .file-btn {
     padding: 10px 20px;
     background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end));
@@ -486,14 +462,12 @@ select.feature>option {
     transition: var(--panel-transition);
 }
 
-/* Button hover/focus */
 .file-btn:hover,
 .file-btn:focus-visible {
     box-shadow: 0 8px 20px var(--action-btn-hover-shadow);
     outline: none;
 }
 
-/* Filename display */
 .file-name {
     font-size: 0.9rem;
     opacity: 0.8;
@@ -505,7 +479,6 @@ select.feature>option {
     text-overflow: ellipsis;
 }
 
-/* Entire label hover effect */
 .file-upload:hover {
     background: var(--card-hover-bg);
 }
@@ -556,7 +529,8 @@ select.feature>option {
     padding: 12px 15px;
     font-size: 0.9rem;
     color: var(--text-color);
-    border: 1px solid var(--card-border);
+    /* border: 1px solid var(--card-border); */
+    border: 1px solid;
     text-align: center;
 }
 
@@ -574,8 +548,8 @@ select.feature>option {
 .styled-table td span:last-child {
     display: block;
     font-size: 0.75rem;
-    color: rgba(255, 255, 255, 0.7);
-    /* Subtle contrast */
+    /* color: rgba(255, 255, 255, 0.7); */
+    color: rgba(0, 0, 0, 0.7);
     margin-top: 4px;
 }
 
@@ -674,13 +648,6 @@ select.feature>option {
     padding-bottom: 15px;
     font-size: 1.8rem;
     font-weight: 600;
-}
-
-.popup-content {
-    display: grid;
-    gap: 15px;
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
 }
 
 .popup-footer {
