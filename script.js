@@ -366,5 +366,3 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Known bugs: // sometime it not assing properly, it not assign it period avaliable to assign, need to figure out why
-
-// TO-DO: // -add classteacher and assing to first period of their class (How to: need to seperate the fetch and timetable generate btn, //                                                                      add toggle btn to select whether to assing class teacher to first period or not) // -need to change the desing of the timetable generator page
