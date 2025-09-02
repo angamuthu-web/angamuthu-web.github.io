@@ -6,8 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
         dataFile: document.getElementById('fileInput'),
         dataFileName: document.querySelector('.file-name'),
         sheetsNameDropdown: document.querySelector('#worksheetName'),
-        previewTitle: document.getElementById("sheetName"),
-        previewTable: document.getElementById("DataTable"),
 
     }
 
@@ -16,7 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileNameSpan = document.querySelector('.file-name');
     const sheetNameDropdown = document.querySelector('#worksheetName');
     const sheetNameDisplay = document.getElementById("sheetName");
-    const dataTable = new Table(document.getElementById("DataTable"));
     const teacherTimeTable = new Table(document.getElementById("TeacherTimeTable"));
     const timeTableTitle = document.getElementById("tableTitle");
     const timeTableSubTitle = document.getElementById("tutorName");
@@ -50,9 +47,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${prefix} ${periods}`;
     };
 
-    const refineDayArray = (day, formatter) =>
-        Array.from({ length: 8 }, (_, i) => formatter(day[i], i));
-
     const DisplayTimeTable = (timeTable) => {
         for (let day = 0; day < 5; day++) {
             for (let period = 0; period < 8; period++) {
@@ -83,8 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectedSheet = sheetNameDropdown.value;
             if (!selectedSheet) return;
 
-            sheetNameDisplay.textContent = selectedSheet;
-
             const worksheet = workbook.Sheets[selectedSheet];
             const teacherDetails = XLSX.utils.sheet_to_json(worksheet);
 
@@ -92,13 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const classList = Classes.replace(/\s/g, '').split(",");
                 const newTeacher = new Teacher(TeacherName, Subject, classList, PeriodPerDay, PeriodPerWeek, TutorTo);
                 school.NewTeacher(newTeacher);
-
-                dataTable.AddRow([TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek, TutorTo]);
             });
 
             populateDropdown(teacherNameDropdown, Object.keys(school.GetTeachers()));
             populateDropdown(classNameDropdown, Object.keys(school.GetClasses()));
-            sheetNameDisplay.scrollIntoView({ behavior: "smooth" });
             if (reserveFirstPeriod.checked) school.test();
             school.GenerateTimetable();
             console.log(school.GetTeachers(), school.GetClasses());
