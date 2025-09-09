@@ -7,6 +7,8 @@ function ArrayToString(array) {
     return values;
 }
 
+const populateDropdown = (dropdown, items, joinDropEl = false) => { if (!joinDropEl) dropdown.innerHTML = ""; items.forEach(item => { dropdown.innerHTML += <option value="${item}">${item}</option>; }); };
+
 function GetElementCount(array, element) {
     if (array === undefined || array.length === 0) return 0;
 

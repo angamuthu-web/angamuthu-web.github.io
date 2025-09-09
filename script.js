@@ -1,357 +1,250 @@
 if (sessionStorage.getItem("isLoggedIn") !== "true") { window.location.href = "./index.html"; }
 
-document.addEventListener('DOMContentLoaded', () => {
-
-    const element = {
-        dataFile: document.getElementById('fileInput'),
-        dataFileName: document.querySelector('.file-name'),
-        sheetsNameDropdown: document.querySelector('#worksheetName'),
-
-    }
-
-    /* DOM Elements*/
-    const inputFile = document.getElementById('fileInput');
-    const fileNameSpan = document.querySelector('.file-name');
-    const sheetNameDropdown = document.querySelector('#worksheetName');
-    const sheetNameDisplay = document.getElementById("sheetName");
-    const teacherTimeTable = new Table(document.getElementById("TeacherTimeTable"));
-    const timeTableTitle = document.getElementById("tableTitle");
-    const timeTableSubTitle = document.getElementById("tutorName");
-    const customizeTableBtn = document.getElementById("customizeTable");
-    const cancelUpdateBtn = document.getElementById("cancelUpdate");
-    const reserveFirstPeriod = document.getElementById("tutorFirstPeriod");
-    const fetchTeachersDataBtn = document.getElementById("fetchTeachersData");
-    const teacherNameDropdown = document.getElementById("teacherNameDropdown");
-    const classNameDropdown = document.getElementById("classNameDropdown");
-    const showTTimeTableBtn = document.getElementById("showTeacherTimeTable");
-    const showCTimeTableBtn = document.getElementById("classTeacherTimeTable");
-    const remainingPeriodEl = document.getElementById("remainingPeriod");
-    const unReservedPeriods = document.querySelector(".table-editor");
+document.addEventListener("DOMContentLoaded", () => {
+    const el = {
+        fileInput: document.getElementById("fileInput"), fileNameLabel: document.querySelector(".file-name"), reserveFP: document.getElementById("tutorFirstPeriod"), fetchBtn: document.getElementById("fetchTeachersData"), sheetDropdown: document.getElementById("worksheetName"), teacherDropdown: document.getElementById("teacherNameDropdown"), classDropdown: document.getElementById("classNameDropdown"), previewTeacherBtn: document.getElementById("showTeacherTimeTable"), previewClassBtn: document.getElementById("classTeacherTimeTable"), customizeBtn: document.getElementById("customizeTable"), cancelBtn: document.getElementById("cancelUpdate"), periodCount: document.getElementById("remainingPeriod"), unreservedContainer: document.querySelector(".table-editor"), table: { el: document.getElementById("TeacherTimeTable"), title: document.getElementById("tableTitle"), subtitle: document.getElementById("tutorName") }
+    };
 
     let school = new School();
-    let workbook;
-
     const popup = new Popup();
+    const TimeTable = new Table(el.table.el);
 
-    const populateDropdown = (dropdown, items, joinDropEl = false) => {
-        if (!joinDropEl) dropdown.innerHTML = "";
-        items.forEach(item => {
-            dropdown.innerHTML += `<option value="${item}">${item}</option>`;
-        });
+    let workbook, isValid = false, state = "idle", className, schoolClone, draggedCell = null;
+
+    const formatPeriods = (data, prefix = "RemainingPeriods:") =>
+        `${prefix} ${Object.entries(data).map(([k, v]) => `${k}: ${v}`).join(" ")}`;
+
+    const formatCell = val =>
+        typeof val === "object"
+            ? Array.isArray(val)
+                ? val.join(", ")
+                : val ? `<span>${val.subject}</span><span>${val.teacher}</span>` : ""
+            : val ?? "";
+
+    const displayTimeTable = table =>
+        table.forEach((row, day) =>
+            row.forEach((cell, period) =>
+                TimeTable.ChangeCellValue(day, period, formatCell(cell))
+            )
+        );
+
+    const setupDragEvents = cell => {
+        cell.addEventListener("dragover", e => e.preventDefault());
+        cell.addEventListener("drop", handleDrop);
+        cell.addEventListener("dblclick", handleDoubleClick);
     };
 
-    const showRemainingPeriods = (remainingData, prefix = "RemainingPeriods:") => {
-        const periods = Object.entries(remainingData)
-            .map(([key, value]) => `${key}: ${value}`)
-            .join(" ");
-        return `${prefix} ${periods}`;
+    const removeDragEvents = cell => {
+        cell.removeEventListener("dragover", e => e.preventDefault());
+        cell.removeEventListener("drop", handleDrop);
+        cell.removeEventListener("dblclick", handleDoubleClick);
     };
 
-    const DisplayTimeTable = (timeTable) => {
-        for (let day = 0; day < 5; day++) {
-            for (let period = 0; period < 8; period++) {
-                teacherTimeTable.ChangeCellValue(day, period, (typeof timeTable[day][period] === "object") ? Array.isArray(timeTable[day][period]) ? timeTable[day][period].join(", ") : classFormatter(timeTable[day][period]) : blankFormatter(timeTable[day][period]))
-            }
-        }
-    }
+    const handleDrop = async e => {
+        e.preventDefault();
+        if (!draggedCell) return;
 
-    const blankFormatter = (val) => val ?? "";
-    const classFormatter = (val) =>
-        val ? `<span>${val.subject}</span><span>${val.teacher}</span>` : "";
+        const _draggedCell = draggedCell;
+        const target = e.target;
+        const day = target.parentElement.dataset.rowIndex;
+        const period = target.dataset.colIndex;
+        const spans = _draggedCell.querySelectorAll("span");
+        const teacherName = spans[1].textContent;
 
-    const initializeEventHandlers = () => {
-        if (initializeEventHandlers.called) return;
-        initializeEventHandlers.called = true;
-
-        sheetNameDropdown.addEventListener('change', () => {
-            const worksheet = workbook.Sheets[sheetNameDropdown.value];
-            const json = XLSX.utils.sheet_to_json(worksheet);
-
-            const requiredFields = ["TeacherName", "Subject", "Classes", "PeriodPerDay", "PeriodPerWeek", "TutorTo"];
-            const isValid = requiredFields.every(field => json[0][field] !== undefined);
-
-            if (!isValid) console.warn("Data format mismatch. Choose a different sheet.");
-        });
-
-        fetchTeachersDataBtn.addEventListener("click", () => {
-            const selectedSheet = sheetNameDropdown.value;
-            if (!selectedSheet) return;
-
-            const worksheet = workbook.Sheets[selectedSheet];
-            const teacherDetails = XLSX.utils.sheet_to_json(worksheet);
-
-            teacherDetails.forEach(({ TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek, TutorTo }) => {
-                const classList = Classes.replace(/\s/g, '').split(",");
-                const newTeacher = new Teacher(TeacherName, Subject, classList, PeriodPerDay, PeriodPerWeek, TutorTo);
-                school.NewTeacher(newTeacher);
-            });
-
-            populateDropdown(teacherNameDropdown, Object.keys(school.GetTeachers()));
-            populateDropdown(classNameDropdown, Object.keys(school.GetClasses()));
-            if (reserveFirstPeriod.checked) school.test();
-            school.GenerateTimetable();
-            console.log(school.GetTeachers(), school.GetClasses());
-        });
-
-        let state = "idle";
-
-        showTTimeTableBtn.addEventListener("click", async () => {
-            if (state == "edit") {
-                const response = await popup.Warning("Leaving edit mode will discard any unsaved edits. Continue?");
-                if (!response) return;
-            }
-            state = "idle";
-            const selectedTeacherName = teacherNameDropdown.value;
-            if (!selectedTeacherName) return;
-
-            const teacher = school.GetTeacher(selectedTeacherName);
-            const timeTableData = teacher.GetTimeTable();
-            const remainingData = teacher.GetReservedPeriodCountAllClass();
-
-            timeTableTitle.textContent = selectedTeacherName;
-            timeTableSubTitle.textContent = `(${school.GetTeacher(selectedTeacherName).TutorFor()})`;
-            customizeTableBtn.style.display = "none";
-            document.getElementById("TeacherTimeTableContainer").classList.remove("editing");
-            document.getElementById("TeacherTimeTable").classList.remove("editing");
-            cancelUpdateBtn.style.display = "none";
-
-            DisplayTimeTable(timeTableData);
-
-            remainingPeriodEl.textContent = showRemainingPeriods(remainingData);
-        });
-
-        let className;
-        let schoolClone;
-        let draggedCell = null;
-
-        const OnDragStart = (e) => {
-            draggedCell = e.target;
+        if (schoolClone.GetClass(className).IsPeriodReserved(day, period)) {
+            await popup.Error("Period is already reserved");
+            return;
         }
 
-        const OnDragEnd = (e) => {
-            draggedCell = null;
+        if (schoolClone.GetTeacher(teacherName).IsPeriodReserved(day, period)) {
+            const confirm = await popup.Warning("This period is already reserved for another class.");
+            if (!confirm) return;
         }
 
-        const OnDragOver = (e) => {
-            e.preventDefault();
+        schoolClone.ReservePeriod(className, teacherName, day, period);
+        spans.forEach(span => target.appendChild(span));
+        _draggedCell.remove();
+        el.periodCount.textContent = formatPeriods(schoolClone.GetPeroidCountOfTeachers(className));
+    };
+
+    const handleDoubleClick = async e => {
+        const target = e.target;
+        const spans = target.querySelectorAll("span");
+        if (!spans.length) {
+            await popup.Error("Already a free period!");
+            return;
         }
 
-        const OnDrop = async (e) => {
-            e.preventDefault();
+        const day = target.parentElement.dataset.rowIndex;
+        const period = target.dataset.colIndex;
+        const elDiv = CreateElement("div", { class: "unreservedPeriod", draggable: "true" },
+            `<span>${spans[0].textContent}</span> - <span>${spans[1].textContent}</span>`);
+        elDiv.addEventListener("dragstart", e => draggedCell = e.target);
+        elDiv.addEventListener("dragend", () => draggedCell = null);
+        el.unreservedContainer.appendChild(elDiv);
 
-            if (draggedCell) {
+        schoolClone.UnreservePeriod(className, spans[1].textContent, day, period);
+        el.periodCount.textContent = formatPeriods(schoolClone.GetPeroidCountOfTeachers(className));
+        target.innerHTML = "";
+    };
 
-                const _draggedCell = draggedCell;
-                const target = e.target;
-                const targetChildren = target.children;
-                const day = target.parentElement.getAttribute("data-rowIndex");
-                const period = target.getAttribute("data-colIndex");
+    const enterEditMode = async () => {
+        state = "edit";
+        schoolClone = school.Clone();
+        displayTimeTable(schoolClone.GetClass(className).GetTimeTable());
 
-                console.log(_draggedCell.children, e.target);
+        document.getElementById("TeacherTimeTableContainer").classList.add("editing");
+        el.customizeBtn.textContent = "Update";
+        el.cancelBtn.style.display = "block";
+        el.unreservedContainer.innerHTML = "";
 
-                const children = _draggedCell.querySelectorAll("span");
-
-                const teacherName = children[1].textContent;
-
-                if (schoolClone.GetClass(className).IsPeriodReserved(day, period)) {
-                    await popup.Error("Preiod is already Reserved");
-                    return;
-                }
-
-                if (schoolClone.GetTeacher(teacherName).IsPeriodReserved(day, period)) {
-                    const response = await popup.Warning("This period already reserved to some other class for this teacher!");
-                    if (!response) return;
-                }
-
-                schoolClone.ReservePeriod(className, teacherName, day, period);
-                children.forEach(child => target.appendChild(child));
-                _draggedCell.remove();
-
-                remainingPeriodEl.textContent = showRemainingPeriods(schoolClone.GetPeroidCountOfTeachers(className));
+        const periodCount = schoolClone.GetPeroidCountOfTeachers(className);
+        for (const teacherName in periodCount) {
+            const teacher = schoolClone.GetTeacher(teacherName);
+            const unassigned = teacher.TotalPeriodPerWeek() - periodCount[teacherName];
+            for (let i = 0; i < unassigned; i++) {
+                const elDiv = CreateElement("div", { class: "unreservedPeriod", draggable: "true" },
+                    `<span>${teacher.Subjects()}</span> - <span>${teacherName}</span>`);
+                elDiv.addEventListener("dragstart", e => draggedCell = e.target);
+                elDiv.addEventListener("dragend", () => draggedCell = null);
+                el.unreservedContainer.appendChild(elDiv);
             }
         }
 
-        const OnDoubleClick = async (e) => {
-            const target = e.target;
-            const children = target.querySelectorAll("span");
+        TimeTable.GetCells().forEach(setupDragEvents);
+        el.customizeBtn.removeEventListener("click", enterEditMode);
+        el.customizeBtn.addEventListener("click", applyUpdates);
+    };
 
-            if (children.length === 0) {
-                await popup.Error("Already it is free period!");
-                return;
-            }
+    const applyUpdates = () => {
+        state = "idle";
+        school = schoolClone.Clone();
+        displayTimeTable(school.GetClass(className).GetTimeTable());
 
-            const day = target.parentElement.getAttribute("data-rowIndex");
-            const period = target.getAttribute("data-colIndex");
+        document.getElementById("TeacherTimeTableContainer").classList.remove("editing");
+        el.customizeBtn.textContent = "Edit";
+        el.cancelBtn.style.display = "none";
 
-            const el = CreateElement("div", { class: "unreservedPeriod", draggable: "true" }, `<span>${children[0].textContent}</span> - <span>${children[1].textContent}</span>`);
-            el.addEventListener("dragstart", OnDragStart);
-            el.addEventListener("dragend", OnDragEnd);
-            unReservedPeriods.appendChild(el);
+        TimeTable.GetCells().forEach(removeDragEvents);
+        el.customizeBtn.removeEventListener("click", applyUpdates);
+        el.customizeBtn.addEventListener("click", enterEditMode);
+        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className));
+    };
 
-            schoolClone.UnreservePeriod(className, children[1].textContent, day, period);
-            remainingPeriodEl.textContent = showRemainingPeriods(schoolClone.GetPeroidCountOfTeachers(className));
-            target.innerHTML = "";
+    const cancelUpdates = async () => {
+        if (state === "edit") {
+            const confirm = await popup.Warning("Discard unsaved edits?");
+            if (!confirm) return;
         }
 
-        const OnClickCancleUpdate = async () => {
-            if (state == "edit") {
-                const response = await popup.Warning("Leaving edit mode will discard any unsaved edits. Continue?");
-                if (!response) return;
-            }
+        state = "idle";
+        displayTimeTable(school.GetClass(className).GetTimeTable());
 
-            state = "idle";
-            document.getElementById("TeacherTimeTableContainer").classList.remove("editing");
-            document.getElementById("TeacherTimeTable").classList.remove("editing");
-            customizeTableBtn.textContent = "Edit";
-            cancelUpdateBtn.style.display = "none";
+        document.getElementById("TeacherTimeTableContainer").classList.remove("editing");
+        el.customizeBtn.textContent = "Edit";
+        el.cancelBtn.style.display = "none";
 
+        TimeTable.GetCells().forEach(removeDragEvents);
+        el.customizeBtn.removeEventListener("click", applyUpdates);
+        el.customizeBtn.addEventListener("click", enterEditMode);
+        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className));
+    };
 
-            DisplayTimeTable(school.GetClass(className).GetTimeTable());
-
-            customizeTableBtn.removeEventListener("click", OnClickUpdate);
-
-            teacherTimeTable.GetCells().forEach(cell => {
-                cell.removeEventListener("dragover", OnDragOver);
-                cell.removeEventListener("drop", OnDrop);
-                cell.removeEventListener("dblclick", OnDoubleClick);
-            });
-
-            customizeTableBtn.addEventListener("click", OnClickEdit);
-            remainingPeriodEl.textContent = showRemainingPeriods(school.GetPeroidCountOfTeachers(className));
-            console.log(school.GetClass(className).GetTimeTable(), schoolClone.GetClass(className).GetTimeTable());
-        }
-
-        const OnClickUpdate = () => {
-            state = "idle";
-
-            customizeTableBtn.removeEventListener("click", OnClickUpdate);
-            document.getElementById("TeacherTimeTableContainer").classList.remove("editing");
-            document.getElementById("TeacherTimeTable").classList.remove("editing");
-            customizeTableBtn.textContent = "Edit";
-            cancelUpdateBtn.style.display = "none";
-
-            teacherTimeTable.GetCells().forEach(cell => {
-                cell.removeEventListener("dragover", OnDragOver);
-                cell.removeEventListener("drop", OnDrop);
-                cell.removeEventListener("dblclick", OnDoubleClick);
-            });
-
-            school = schoolClone.Clone();
-            DisplayTimeTable(school.GetClass(className).GetTimeTable());
-
-            customizeTableBtn.addEventListener("click", OnClickEdit);
-            remainingPeriodEl.textContent = showRemainingPeriods(school.GetPeroidCountOfTeachers(className));
-            console.log(school.GetClass(className).GetTimeTable());
-        }
-
-        const OnClickEdit = async () => {
-
-            state = "edit";
-            customizeTableBtn.removeEventListener("click", OnClickEdit);
-
-            schoolClone = school.Clone();
-            DisplayTimeTable(schoolClone.GetClass(className).GetTimeTable());
-
-            document.getElementById("TeacherTimeTableContainer").classList.add("editing");
-            document.getElementById("TeacherTimeTable").classList.add("editing");
-            customizeTableBtn.textContent = "Update";
-            cancelUpdateBtn.style.display = "block";
-
-            const periodCount = schoolClone.GetPeroidCountOfTeachers(className)
-            unReservedPeriods.innerHTML = "";
-            for (const teacherName in periodCount) {
-                const teacher = schoolClone.GetTeacher(teacherName);
-                const maxPeriod = teacher.TotalPeriodPerWeek();
-
-                const diff = maxPeriod - periodCount[teacherName];
-                if (diff > 0) {
-                    for (let i = 0; i < diff; i++) {
-                        const el = CreateElement("div", { class: "unreservedPeriod", draggable: "true" }, `<span>${teacher.Subjects()}</span> - <span>${teacherName}</span>`);
-                        el.addEventListener("dragstart", OnDragStart);
-                        el.addEventListener("dragend", OnDragEnd);
-                        unReservedPeriods.append(el);
-                    }
-                }
-            }
-
-            teacherTimeTable.GetCells().forEach(cell => {
-                cell.addEventListener("dragover", OnDragOver);
-                cell.addEventListener("drop", OnDrop);
-                cell.addEventListener("dblclick", OnDoubleClick);
-            });
-
-            customizeTableBtn.addEventListener("click", OnClickUpdate);
-        }
-
-        showCTimeTableBtn.addEventListener("click", async () => {
-            const selectedClassName = classNameDropdown.value;
-            if (!selectedClassName) return;
-
-            if (state === "edit") {
-                const response = await popup.Warning("Leaving edit mode will discard any unsaved edits. Continue?");
-                if (!response) return;
-            }
-
-            state = "idle";
-
-            teacherTimeTable.GetCells().forEach(cell => {
-                cell.removeEventListener("dragover", OnDragOver);
-
-                cell.removeEventListener("drop", OnDrop);
-            });
-            document.getElementById("TeacherTimeTableContainer").classList.remove("editing");
-            document.getElementById("TeacherTimeTable").classList.remove("editing");
-            customizeTableBtn.textContent = "Edit";
-            cancelUpdateBtn.style.display = "none";
-            customizeTableBtn.removeEventListener("click", OnClickUpdate);
-            customizeTableBtn.addEventListener("click", OnClickEdit);
-
-            firstTime = false;
-
-            className = selectedClassName;
-            const _class = school.GetClass(className);
-            timeTableData = _class.GetTimeTable();
-
-            timeTableTitle.textContent = selectedClassName;
-            timeTableSubTitle.textContent = `(${_class.GetTutor().name})`;
-            customizeTableBtn.style.display = "block";
-
-            for (let day = 0; day < 5; day++) {
-                for (let period = 0; period < 8; period++) {
-                    teacherTimeTable.ChangeCellValue(day, period, classFormatter(timeTableData[day][period]));
-                }
-            }
-
-            remainingPeriodEl.textContent = showRemainingPeriods(school.GetPeroidCountOfTeachers(className));
-        });
-
-        customizeTableBtn.addEventListener("click", OnClickEdit);
-        cancelUpdateBtn.addEventListener("click", OnClickCancleUpdate);
-
-    }
-
-    initializeEventHandlers.called = false;
-
-    inputFile.addEventListener("change", (e) => {
+    const handleFileChange = e => {
         const file = e.target.files[0];
         if (!file) return;
 
-        fileNameSpan.textContent = file.name;
+        el.fileNameLabel.textContent = file.name;
         const reader = new FileReader();
-
-        reader.onload = (event) => {
+        reader.onload = event => {
             const data = new Uint8Array(event.target.result);
             workbook = XLSX.read(data, { type: "array" });
-
-            populateDropdown(sheetNameDropdown, workbook.SheetNames);
-            sheetNameDropdown.focus();
-
+            populateDropdown(el.sheetDropdown, workbook.SheetNames);
             initializeEventHandlers();
         };
-
         reader.readAsArrayBuffer(file);
-    });
+    };
+
+    const validateSheet = () => {
+        const sheet = workbook.Sheets[el.sheetDropdown.value];
+        const json = XLSX.utils.sheet_to_json(sheet);
+        const requiredFields = ["TeacherName", "Subject", "Classes", "PeriodPerDay", "PeriodPerWeek", "TutorTo"];
+        isValid = json.length > 0 && requiredFields.every(field => field in json[0]);
+    };
+
+    const generateTimetable = () => {
+        if (!isValid) return popup.Error("Data format mismatch.");
+        const sheet = workbook.Sheets[el.sheetDropdown.value];
+        const teacherDetails = XLSX.utils.sheet_to_json(sheet);
+
+        teacherDetails.forEach(({ TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek, TutorTo }) => {
+            const classList = Classes.replace(/\s/g, "").split(",");
+            school.NewTeacher(new Teacher(TeacherName, Subject, classList, PeriodPerDay, PeriodPerWeek, TutorTo));
+        });
+
+        populateDropdown(el.teacherDropdown, Object.keys(school.GetTeachers()));
+        populateDropdown(el.classDropdown, Object.keys(school.GetClasses()));
+        if (el.reserveFP.checked) school.test();
+        school.GenerateTimetable();
+
+        document.querySelector(".container").children[1].scrollIntoView({ behavior: "smooth", block: "start" });
+        //reset all fields classdropdown, teacherdripdown, timetable, table buttons
+    };
+
+    const previewTeacher = async () => {
+        if (state === "edit" && !(await popup.Warning("Discard unsaved edits?"))) return;
+
+        document.getElementById("TeacherTimeTableContainer").classList.remove("editing");
+        el.customizeBtn.textContent = "Edit";
+        el.customizeBtn.style.display = "none";
+        el.cancelBtn.style.display = "none";
+        state = "idle";
+
+        const teacherName = el.teacherDropdown.value;
+        if (!teacherName) return popup.Error("Please select a teacher.");
+
+        const teacher = school.GetTeacher(teacherName);
+        el.table.title.textContent = teacherName;
+        el.table.subtitle.textContent = `(${teacher.TutorFor()})`;
+        TimeTable.Clear();
+        displayTimeTable(teacher.GetTimeTable());
+    };
+
+    const previewClass = async () => {
+        if (state === "edit" && !(await popup.Warning("Discard unsaved edits?"))) return;
+
+        state = "idle";
+        className = el.classDropdown.value;
+        if (!className) return popup.Error("Please select a class.");
+
+        const classObj = school.GetClass(className);
+        el.table.title.textContent = className;
+        el.table.subtitle.textContent = `(${classObj.GetTutor().name})`;
+        TimeTable.Clear();
+        displayTimeTable(classObj.GetTimeTable());
+        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className));
+
+        el.customizeBtn.style.display = "block";
+    };
+
+    const populateDropdown = (dropdown, items, clear = false) => {
+        if (clear) dropdown.innerHTML = "";
+        items.forEach(item => {
+            const option = document.createElement("option");
+            option.value = option.textContent = item;
+            dropdown.appendChild(option);
+        });
+    };
+
+    const initializeEventHandlers = () => {
+        el.sheetDropdown.addEventListener("change", validateSheet);
+        el.fetchBtn.addEventListener("click", generateTimetable);
+        el.previewTeacherBtn.addEventListener("click", previewTeacher);
+        el.previewClassBtn.addEventListener("click", previewClass);
+        el.customizeBtn.addEventListener("click", enterEditMode);
+        el.cancelBtn.addEventListener("click", cancelUpdates);
+    };
+
+    el.fileInput.addEventListener("change", handleFileChange);
 
 });
-
-// Known bugs: // sometime it not assing properly, it not assign it period avaliable to assign, need to figure out why

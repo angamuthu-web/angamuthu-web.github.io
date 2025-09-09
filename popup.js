@@ -17,7 +17,7 @@ class Popup {
         buttons.forEach(({ label, type, value }) => {
             const btn = document.createElement("button");
             btn.textContent = label;
-            btn.className = `popup-btn ${type}`;
+            btn.className = `btn ${type}`;
             btn.setAttribute("aria-label", `${label} warning`);
 
             const onClick = () => {

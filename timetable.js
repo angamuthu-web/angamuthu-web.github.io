@@ -34,7 +34,6 @@ class Teacher {
         } else {
             this.#reservedPeriod[day][period] = className;
         }
-        if(!this.#reservedPeriodCount[className]) this.#reservedPeriodCount[className] = 0;
         this.#reservedPeriodCount[className]++;
     }
 
@@ -47,8 +46,7 @@ class Teacher {
         } else {
             delete this.#reservedPeriod[day][period];
         }
-        if(!this.#reservedPeriodCount[className]) this.#reservedPeriodCount[className] = 0;
-        else this.#reservedPeriodCount[className]--;
+        this.#reservedPeriodCount[className]--;
     }
 
     IsPeriodReserved(day, period) {
@@ -97,6 +95,7 @@ class Class {
     AddTeacher(teacher) {
         if (this.#teachers[teacher.Subjects()]) return;
         this.#teachers[teacher.Subjects()] = { teacher: teacher.Name(), subject: teacher.Subjects() };
+        teacher.SetReservedPeriodCount(this.#name, 0);
     }
 
     AssignTutor(teacher) {
@@ -255,6 +254,7 @@ class School {
 
         newTeacher.Classes().forEach(className => {
             this.NewClass(new Class(className));
+            // this.AddTeacherToClass(_class, newTeacher.Name(), newTeacher.Subjects());
             if (className === newTeacher.TutorFor()) {
                 this.#classes[className].AddTeacher(newTeacher);
                 this.#classes[className].AssignTutor(newTeacher);
