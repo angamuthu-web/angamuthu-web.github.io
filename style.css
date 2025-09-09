@@ -37,7 +37,7 @@
 
 }
 
-* {
+*    {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -560,13 +560,15 @@ select.feature>option {
 .panel-content .table-editor {
     width: 0px;
     transition: all 0.3s ease;
+    padding-block: 16px;
 }
 
 .panel-content.editing .table-editor {
     width: 200px;
     background: var(--card-bg);
-    padding: 16px;
+    padding-inline: 16px;
     cursor: grab;
+    box-shadow: 0 5px 15px var(--card-shadow);
 }
 
 .unreservedPeriod {

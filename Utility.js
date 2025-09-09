@@ -2,12 +2,17 @@ function ArrayToString(array) {
 
     let values = "";
 
-    for (let i = 0; i < array.length; i++) { values += (i == 0) ? array[i] : `, ${ array[i] }`; }
+    for (let i = 0; i < array.length; i++) { values += (i == 0) ? array[i] : `, ${array[i]}`; }
 
     return values;
 }
 
-const populateDropdown = (dropdown, items, joinDropEl = false) => { if (!joinDropEl) dropdown.innerHTML = ""; items.forEach(item => { dropdown.innerHTML += <option value="${item}">${item}</option>; }); };
+const populateDropdown = (dropdown, items, joinDropEl = false) => {
+    if (!joinDropEl) dropdown.innerHTML = "";
+    items.forEach(item => {
+        dropdown.innerHTML += `<option value="${item}">${item}</option>`;
+    });
+};
 
 function GetElementCount(array, element) {
     if (array === undefined || array.length === 0) return 0;
