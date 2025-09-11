@@ -23,10 +23,18 @@ function GetElementCount(array, element) {
 }
 
 class UniqueRandom {
-    constructor(min, max, canResetOnExhausted = false) { this.min = Math.ceil(min); this.max = Math.floor(max); this.canResetOnExhausted = canResetOnExhausted; this.used = new Set(); }
+    constructor(min, max, canResetOnExhausted = false) { 
+        this.min = Math.ceil(min); 
+        this.max = Math.floor(max); 
+        this.canResetOnExhausted = canResetOnExhausted; 
+        this.used = new Set();
+    }
 
     next() {
-        if (this.used.size >= (this.max - this.min + 1)) { if (this.canResetOnExhausted) this.used = new Set(); else return -1; }
+        if (this.used.size >= (this.max - this.min + 1)) { 
+            if (this.canResetOnExhausted) this.used = new Set(); 
+            else return -1; 
+        }
 
         let value;
         do {

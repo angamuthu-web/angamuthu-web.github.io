@@ -8,6 +8,9 @@
     <title>Interactive Split Panel Design</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 </head>
 
@@ -103,6 +106,7 @@
                     <div class="btn-container">
                         <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;" id="customizeTable">Edit</button>
                         <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;" id="cancelUpdate">Cancel</button>
+                        <button class="action-btn" style="margin-top: 0;" id="saveAs">Save as</button>
                     </div>
                 </div>
                 <div class="panel-content" id="TeacherTimeTableContainer">
@@ -204,7 +208,12 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+  console.log(typeof saveAs); // should print "function"
+</script>
+
     <script src="Utility.js"></script>
     <script src="popup.js"></script>
     <script src="table.js"></script>

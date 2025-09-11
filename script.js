@@ -2,7 +2,25 @@ if (sessionStorage.getItem("isLoggedIn") !== "true") { window.location.href = ".
 
 document.addEventListener("DOMContentLoaded", () => {
     const el = {
-        fileInput: document.getElementById("fileInput"), fileNameLabel: document.querySelector(".file-name"), reserveFP: document.getElementById("tutorFirstPeriod"), fetchBtn: document.getElementById("fetchTeachersData"), sheetDropdown: document.getElementById("worksheetName"), teacherDropdown: document.getElementById("teacherNameDropdown"), classDropdown: document.getElementById("classNameDropdown"), previewTeacherBtn: document.getElementById("showTeacherTimeTable"), previewClassBtn: document.getElementById("classTeacherTimeTable"), customizeBtn: document.getElementById("customizeTable"), cancelBtn: document.getElementById("cancelUpdate"), periodCount: document.getElementById("remainingPeriod"), unreservedContainer: document.querySelector(".table-editor"), table: { el: document.getElementById("TeacherTimeTable"), title: document.getElementById("tableTitle"), subtitle: document.getElementById("tutorName") }
+        fileInput: document.getElementById("fileInput"),
+        fileNameLabel: document.querySelector(".file-name"),
+        reserveFP: document.getElementById("tutorFirstPeriod"),
+        fetchBtn: document.getElementById("fetchTeachersData"),
+        sheetDropdown: document.getElementById("worksheetName"),
+        teacherDropdown: document.getElementById("teacherNameDropdown"),
+        classDropdown: document.getElementById("classNameDropdown"),
+        previewTeacherBtn: document.getElementById("showTeacherTimeTable"),
+        previewClassBtn: document.getElementById("classTeacherTimeTable"),
+        customizeBtn: document.getElementById("customizeTable"),
+        cancelBtn: document.getElementById("cancelUpdate"),
+        periodCount: document.getElementById("remainingPeriod"),
+        unreservedContainer: document.querySelector(".table-editor"),
+        downloadBtn: document.getElementById("saveAs"),
+        table: {
+            el: document.getElementById("TeacherTimeTable"),
+            title: document.getElementById("tableTitle"),
+            subtitle: document.getElementById("tutorName")
+        }
     };
 
     let school = new School();
@@ -227,6 +245,25 @@ document.addEventListener("DOMContentLoaded", () => {
         el.customizeBtn.style.display = "block";
     };
 
+    const download = () => {
+        // Create workbook
+        const workbook = XLSX.utils.book_new();
+
+        // Loop through each sheet and append
+        for (const [sheetName, data] of Object.entries(school.GetTeachers())) {
+            const formatedArray = FormatArray(data.GetTimeTable());
+            const sheet = XLSX.utils.aoa_to_sheet(formatedArray);
+            sheet['!merges'] = [
+                { s: { r: 0, c: 3 }, e: { r: 5, c: 3 } },
+                { s: { r: 0, c: 6 }, e: { r: 5, c: 6 } },
+                { s: { r: 0, c: 9 }, e: { r: 5, c: 9 } } 
+            ];
+            XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
+        }
+
+        XLSX.writeFile(workbook, "Teachers-Timetable.xlsx");
+    }
+
     const populateDropdown = (dropdown, items, clear = false) => {
         if (clear) dropdown.innerHTML = "";
         items.forEach(item => {
@@ -243,8 +280,44 @@ document.addEventListener("DOMContentLoaded", () => {
         el.previewClassBtn.addEventListener("click", previewClass);
         el.customizeBtn.addEventListener("click", enterEditMode);
         el.cancelBtn.addEventListener("click", cancelUpdates);
+        el.downloadBtn.addEventListener("click", download);
     };
 
     el.fileInput.addEventListener("change", handleFileChange);
 
+    el.downloadBtn.addEventListener("click", download);
+
 });
+
+function FormatArray(array) {
+    const _array = [new Array(12), new Array(12), new Array(12), new Array(12), new Array(12), new Array(12)];
+    _array[0][1] = "Period 1";
+    _array[0][2] = "Period 2";
+    _array[0][3] = "Break";
+    _array[0][4] = "Period 3";
+    _array[0][5] = "Period 4";
+    _array[0][6] = "Break";
+    _array[0][7] = "Period 5";
+    _array[0][8] = "Period 6";
+    _array[0][9] = "Break";
+    _array[0][10] = "Period 7";
+    _array[0][11] = "Period 8";
+    _array[1][0] = "Monday";
+    _array[2][0] = "Tuesday";
+    _array[3][0] = "Wednesday";
+    _array[4][0] = "Thusday";
+    _array[5][0] = "Friday";
+    
+    let day = 0;
+    for (let row = 1; row < 6; row++) {
+        let period = 0;
+        for (let col = 1; col < 12; col++) {
+            if(col % 3 === 0) continue;
+            _array[row][col] = array[day][period];
+            period++;
+        }
+        day++;
+    }
+    
+    return _array;
+}

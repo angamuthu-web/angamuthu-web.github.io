@@ -1,9 +1,12 @@
 class Popup {
-    #container = document.getElementById("popup"); #title = this.#container.querySelector(".popup-header .title"); #closeBtn = this.#container.querySelector(".popup-header .close"); #body = this.#container.querySelector(".popup-content"); #footer = this.#container.querySelector(".popup-footer");
+    #container = document.getElementById("popup");
+    #title = this.#container.querySelector(".popup-header .title");
+    #closeBtn = this.#container.querySelector(".popup-header .close");
+    #body = this.#container.querySelector(".popup-content");
+    #footer = this.#container.querySelector(".popup-footer");
 
     constructor() {
-        this.Close = this.Close.bind(this);
-        this.#closeBtn.addEventListener("click", this.Close);
+        this.#closeBtn.addEventListener("click", this.#Close);
     }
 
     #showPopup(title, content, buttons, callback) {
@@ -11,10 +14,11 @@ class Popup {
         document.body.style.overflow = "hidden";
 
         this.#title.textContent = title;
-        this.#body.innerHTML = content;
+        if(typeof content === "string") this.#body.innerHTML = content;
+        else this.#body.append(content);
         this.#footer.innerHTML = "";
 
-        buttons.forEach(({ label, type, value }) => {
+        buttons?.forEach(({ label, type, value }) => {
             const btn = document.createElement("button");
             btn.textContent = label;
             btn.className = `btn ${type}`;
@@ -22,7 +26,7 @@ class Popup {
 
             const onClick = () => {
                 callback(value);
-                this.Close();
+                this.#Close();
             };
 
             btn.addEventListener("click", onClick, { once: true });
@@ -47,7 +51,11 @@ class Popup {
         });
     }
 
-    Close() {
+    Custom(title, popupContent, btns) {
+        this.#showPopup(title, popupContent);
+    }
+
+    #Close = () => {
         this.#container.classList.add("hidden");
         document.body.style.overflow = "";
 
