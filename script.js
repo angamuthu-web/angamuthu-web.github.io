@@ -27,10 +27,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const popup = new Popup();
     const TimeTable = new Table(el.table.el);
 
-    let workbook, isValid = false, state = "idle", className, schoolClone, draggedCell = null;
+    let workbook = new ExcelJS.Workbook(), isValid = false, state = "idle", className, schoolClone, draggedCell = null, isScheduleCreated = false;
 
-    const formatPeriods = (data, prefix = "RemainingPeriods:") =>
-        `${prefix} ${Object.entries(data).map(([k, v]) => `${k}: ${v}`).join(" ")}`;
+    const formatPeriods = (data, prefix = "RemainingPeriods:") => {
+        let string = `${prefix} `;
+        for (const tName in data) {
+            for (const subject in data[tName]) {
+                string += `${tName}(${subject}): ${data[tName][subject]} `;
+            }
+        }
+        return string;
+    }
 
     const formatCell = val =>
         typeof val === "object"
@@ -39,12 +46,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 : val ? `<span>${val.subject}</span><span>${val.teacher}</span>` : ""
             : val ?? "";
 
-    const displayTimeTable = table =>
+    const displayTimeTable = (table) => {
+        TimeTable.Clear();
         table.forEach((row, day) =>
             row.forEach((cell, period) =>
                 TimeTable.ChangeCellValue(day, period, formatCell(cell))
             )
         );
+    }
 
     const setupDragEvents = cell => {
         cell.addEventListener("dragover", e => e.preventDefault());
@@ -67,6 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const day = target.parentElement.dataset.rowIndex;
         const period = target.dataset.colIndex;
         const spans = _draggedCell.querySelectorAll("span");
+        const subject = spans[0].textContent;
         const teacherName = spans[1].textContent;
 
         if (schoolClone.GetClass(className).IsPeriodReserved(day, period)) {
@@ -79,7 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!confirm) return;
         }
 
-        schoolClone.ReservePeriod(className, teacherName, day, period);
+        schoolClone.ReservePeriod(className, teacherName, subject, day, period);
         spans.forEach(span => target.appendChild(span));
         _draggedCell.remove();
         el.periodCount.textContent = formatPeriods(schoolClone.GetPeroidCountOfTeachers(className));
@@ -101,7 +111,7 @@ document.addEventListener("DOMContentLoaded", () => {
         elDiv.addEventListener("dragend", () => draggedCell = null);
         el.unreservedContainer.appendChild(elDiv);
 
-        schoolClone.UnreservePeriod(className, spans[1].textContent, day, period);
+        schoolClone.UnreservePeriod(className, spans[0].textContent, spans[1].textContent, day, period);
         el.periodCount.textContent = formatPeriods(schoolClone.GetPeroidCountOfTeachers(className));
         target.innerHTML = "";
     };
@@ -119,13 +129,15 @@ document.addEventListener("DOMContentLoaded", () => {
         const periodCount = schoolClone.GetPeroidCountOfTeachers(className);
         for (const teacherName in periodCount) {
             const teacher = schoolClone.GetTeacher(teacherName);
-            const unassigned = teacher.TotalPeriodPerWeek() - periodCount[teacherName];
-            for (let i = 0; i < unassigned; i++) {
-                const elDiv = CreateElement("div", { class: "unreservedPeriod", draggable: "true" },
-                    `<span>${teacher.Subjects()}</span> - <span>${teacherName}</span>`);
-                elDiv.addEventListener("dragstart", e => draggedCell = e.target);
-                elDiv.addEventListener("dragend", () => draggedCell = null);
-                el.unreservedContainer.appendChild(elDiv);
+            for (const sub in periodCount[teacherName]) {
+                const unassigned = teacher.TotalPeriodPerWeek(sub, className) - periodCount[teacherName][sub];
+                for (let i = 0; i < unassigned; i++) {
+                    const elDiv = CreateElement("div", { class: "unreservedPeriod", draggable: "true" },
+                        `<span>${sub}</span> - <span>${teacherName}</span>`);
+                    elDiv.addEventListener("dragstart", e => draggedCell = e.target);
+                    elDiv.addEventListener("dragend", () => draggedCell = null);
+                    el.unreservedContainer.appendChild(elDiv);
+                }
             }
         }
 
@@ -151,7 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const cancelUpdates = async () => {
         if (state === "edit") {
-            const confirm = await popup.Warning("Discard unsaved edits?");
+            const confirm = await popup.Warning("Are you sure you want to discard your changes?");
             if (!confirm) return;
         }
 
@@ -173,44 +185,49 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!file) return;
 
         el.fileNameLabel.textContent = file.name;
+        el.fetchBtn.textContent = "Generate schedule";
         const reader = new FileReader();
-        reader.onload = event => {
+        reader.onload = async event => {
             const data = new Uint8Array(event.target.result);
-            workbook = XLSX.read(data, { type: "array" });
-            populateDropdown(el.sheetDropdown, workbook.SheetNames);
-            initializeEventHandlers();
+            await workbook.xlsx.load(data);
+            populateDropdown(el.sheetDropdown, workbook.worksheets.map(sheet => sheet.name), true, `<option value="" hidden>No sheet chosen</option>`);
         };
         reader.readAsArrayBuffer(file);
     };
 
-    const validateSheet = () => {
-        const sheet = workbook.Sheets[el.sheetDropdown.value];
-        const json = XLSX.utils.sheet_to_json(sheet);
+    const validateSheet = (sheetObj) => {
         const requiredFields = ["TeacherName", "Subject", "Classes", "PeriodPerDay", "PeriodPerWeek", "TutorTo"];
-        isValid = json.length > 0 && requiredFields.every(field => field in json[0]);
+        return sheetObj && sheetObj.length > 0 && requiredFields.every(field => field in sheetObj[0]);
     };
 
     const generateTimetable = () => {
-        if (!isValid) return popup.Error("Data format mismatch.");
-        const sheet = workbook.Sheets[el.sheetDropdown.value];
-        const teacherDetails = XLSX.utils.sheet_to_json(sheet);
+        if (state === "edit") return popup.Error("Re-scheduling unavailable while in edit mode. Please exit edit mode to proceed.");
+        school = new School();
+        const sheet = workbook.getWorksheet(el.sheetDropdown.value);
+        if (!sheet) return popup.Error("Select a sheet to continue.");
 
-        teacherDetails.forEach(({ TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek, TutorTo }) => {
+        const dataSheet = sheetToJson(sheet);
+        isValid = validateSheet(dataSheet);
+        if (!isValid) return popup.Error("Data format mismatch.");
+        el.fetchBtn.textContent = "Re-Generate schedule";
+
+        dataSheet.forEach(({ TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek, TutorTo }) => {
             const classList = Classes.replace(/\s/g, "").split(",");
-            school.NewTeacher(new Teacher(TeacherName, Subject, classList, PeriodPerDay, PeriodPerWeek, TutorTo));
+            school.NewTeacher(TeacherName, Subject, classList, PeriodPerDay, PeriodPerWeek, TutorTo);
         });
 
-        populateDropdown(el.teacherDropdown, Object.keys(school.GetTeachers()));
-        populateDropdown(el.classDropdown, Object.keys(school.GetClasses()));
+        populateDropdown(el.teacherDropdown, Object.keys(school.GetTeachers()), true, `<option value="" hidden>-select-</option>`);
+        populateDropdown(el.classDropdown, Object.keys(school.GetClasses()), true, `<option value="" hidden>-select-</option>`);
         if (el.reserveFP.checked) school.test();
         school.GenerateTimetable();
 
         document.querySelector(".container").children[1].scrollIntoView({ behavior: "smooth", block: "start" });
-        //reset all fields classdropdown, teacherdripdown, timetable, table buttons
+        isScheduleCreated = true;
+        TimeTable.Clear();
     };
 
     const previewTeacher = async () => {
-        if (state === "edit" && !(await popup.Warning("Discard unsaved edits?"))) return;
+        if (state === "edit" && !(await popup.Warning("You have unsaved changes. Do you want to discard them?"))) return;
 
         document.getElementById("TeacherTimeTableContainer").classList.remove("editing");
         el.customizeBtn.textContent = "Edit";
@@ -219,21 +236,22 @@ document.addEventListener("DOMContentLoaded", () => {
         state = "idle";
 
         const teacherName = el.teacherDropdown.value;
-        if (!teacherName) return popup.Error("Please select a teacher.");
+        if (!teacherName) return popup.Error("No teacher selected. Please choose one from the dropdown.");
 
         const teacher = school.GetTeacher(teacherName);
         el.table.title.textContent = teacherName;
-        el.table.subtitle.textContent = `(${teacher.TutorFor()})`;
+        el.table.subtitle.textContent = `(${teacher.TutorFor().class})`;
         TimeTable.Clear();
         displayTimeTable(teacher.GetTimeTable());
+        el.periodCount.textContent = formatPeriods(school.GetTeacher(teacherName).GetReservedPeriodCountAll());
     };
 
     const previewClass = async () => {
-        if (state === "edit" && !(await popup.Warning("Discard unsaved edits?"))) return;
+        if (state === "edit" && !(await popup.Warning("You have unsaved changes. Do you want to discard them?"))) return;
 
         state = "idle";
         className = el.classDropdown.value;
-        if (!className) return popup.Error("Please select a class.");
+        if (!className) return popup.Error("No class selected. Please choose one from the dropdown.");
 
         const classObj = school.GetClass(className);
         el.table.title.textContent = className;
@@ -245,27 +263,45 @@ document.addEventListener("DOMContentLoaded", () => {
         el.customizeBtn.style.display = "block";
     };
 
-    const download = () => {
+    const download = async () => {
         // Create workbook
-        const workbook = XLSX.utils.book_new();
+        if (!isScheduleCreated) return popup.Error("No time schedule available for download at this moment.");
+        if (state === "edit") return popup.Error("Download unavailable while in edit mode. Please exit edit mode to proceed.");
+        const workbook = new ExcelJS.Workbook();
+
+        const allSheets = {
+            ...school.GetTeachers(),
+            ...school.GetClasses() // Assuming this returns a similar structure
+        };
 
         // Loop through each sheet and append
-        for (const [sheetName, data] of Object.entries(school.GetTeachers())) {
-            const formatedArray = FormatArray(data.GetTimeTable());
-            const sheet = XLSX.utils.aoa_to_sheet(formatedArray);
-            sheet['!merges'] = [
-                { s: { r: 0, c: 3 }, e: { r: 5, c: 3 } },
-                { s: { r: 0, c: 6 }, e: { r: 5, c: 6 } },
-                { s: { r: 0, c: 9 }, e: { r: 5, c: 9 } } 
-            ];
-            XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
+        for (const [sheetName, data] of Object.entries(allSheets)) {
+            const formattedArray = formatWeeklySchedule(data.GetTimeTable());
+            const sheet = workbook.addWorksheet(sheetName);
+
+            formattedArray.forEach(row => sheet.addRow(row));
+
+            ['D1:D6', 'G1:G6', 'J1:J6'].forEach(range => sheet.mergeCells(range));
+
+            sheet.columns = formattedArray[0].map((_, index) => ({
+                width: index !== 0 && index % 3 === 0 ? 8 : 18
+            }));
+
+            styleCellRange(sheet, 1, 6, 1, 12);
         }
 
-        XLSX.writeFile(workbook, "Teachers-Timetable.xlsx");
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = "Teachers-Timetable.xlsx";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
-    const populateDropdown = (dropdown, items, clear = false) => {
-        if (clear) dropdown.innerHTML = "";
+    const populateDropdown = (dropdown, items, clear = false, hiddenEl = "") => {
+        if (clear) dropdown.innerHTML = hiddenEl;
         items.forEach(item => {
             const option = document.createElement("option");
             option.value = option.textContent = item;
@@ -273,51 +309,84 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     };
 
-    const initializeEventHandlers = () => {
-        el.sheetDropdown.addEventListener("change", validateSheet);
-        el.fetchBtn.addEventListener("click", generateTimetable);
-        el.previewTeacherBtn.addEventListener("click", previewTeacher);
-        el.previewClassBtn.addEventListener("click", previewClass);
-        el.customizeBtn.addEventListener("click", enterEditMode);
-        el.cancelBtn.addEventListener("click", cancelUpdates);
-        el.downloadBtn.addEventListener("click", download);
-    };
-
     el.fileInput.addEventListener("change", handleFileChange);
 
+    el.fetchBtn.addEventListener("click", generateTimetable);
+    el.previewTeacherBtn.addEventListener("click", previewTeacher);
+    el.previewClassBtn.addEventListener("click", previewClass);
+    el.customizeBtn.addEventListener("click", enterEditMode);
+    el.cancelBtn.addEventListener("click", cancelUpdates);
     el.downloadBtn.addEventListener("click", download);
 
 });
 
-function FormatArray(array) {
-    const _array = [new Array(12), new Array(12), new Array(12), new Array(12), new Array(12), new Array(12)];
-    _array[0][1] = "Period 1";
-    _array[0][2] = "Period 2";
-    _array[0][3] = "Break";
-    _array[0][4] = "Period 3";
-    _array[0][5] = "Period 4";
-    _array[0][6] = "Break";
-    _array[0][7] = "Period 5";
-    _array[0][8] = "Period 6";
-    _array[0][9] = "Break";
-    _array[0][10] = "Period 7";
-    _array[0][11] = "Period 8";
-    _array[1][0] = "Monday";
-    _array[2][0] = "Tuesday";
-    _array[3][0] = "Wednesday";
-    _array[4][0] = "Thusday";
-    _array[5][0] = "Friday";
-    
-    let day = 0;
-    for (let row = 1; row < 6; row++) {
-        let period = 0;
-        for (let col = 1; col < 12; col++) {
-            if(col % 3 === 0) continue;
-            _array[row][col] = array[day][period];
-            period++;
+function sheetToJson(worksheet) {
+    const json = []; const header = [];
+
+    worksheet.eachRow((row, rowNumber) => {
+        const rowValues = row.values;
+
+        // ExcelJS row.values is 1-based, so index 0 is undefined
+        if (rowNumber === 1) {
+            // First row is header
+            for (let i = 1; i < rowValues.length; i++) {
+                header.push(rowValues[i]);
+            }
+        } else {
+            const rowObject = {};
+            for (let i = 1; i < rowValues.length; i++) {
+                rowObject[header[i - 1]] = rowValues[i];
+            }
+            json.push(rowObject);
         }
-        day++;
+    });
+
+    return json;
+
+}
+
+function formatWeeklySchedule(array) {
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]; const headers = [null, "Period 1\n09:30AM 10:10AM", "Period 2\n10:10AM 10:40AM", "Break", "Period 3\n10:50AM 11:30AM", "Period 4\n11:30AM 12:10PM", "Break", "Period 5\n01:10PM 01:50PM", "Period 6\n01:50PM 02:30PM", "Break", "Period 7\n02:40PM 03:20PM", "Period 8\n03:20PM 04:00PM"];
+
+    const schedule = Array.from({ length: 6 }, () => Array(12).fill(null));
+
+    schedule[0] = headers;
+    days.forEach((day, index) => {
+        schedule[index + 1][0] = day;
+    });
+
+    for (let row = 1; row <= 5; row++) {
+        let periodIndex = 0;
+        for (let col = 1; col < 12; col++) {
+            if (col % 3 === 0) continue;
+            const cell = array[row - 1][periodIndex++];
+            schedule[row][col] = typeof cell === "string" ? cell : Array.isArray(cell) ? cell.toString() : cell?.subject || null;
+        }
     }
-    
-    return _array;
+
+    return schedule;
+
+}
+
+function styleCellRange(sheet, startRow, endRow, startCol, endCol, styleOptions) {
+    for (let row = startRow; row <= endRow; row++) {
+        const currentRow = sheet.getRow(row);
+        currentRow.height = 33.75;
+        for (let col = startCol; col <= endCol; col++) {
+            const cell = currentRow.getCell(col);
+            cell.alignment = {
+                wrapText: true,
+                horizontal: 'center',
+                vertical: 'middle',
+                ...(styleOptions?.alignment || {})
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' },
+                ...(styleOptions?.border || {})
+            };
+        }
+    }
 }

@@ -2,16 +2,12 @@
 <html lang="en">
 
 <head>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Split Panel Design</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
 </head>
 
 <body>
@@ -23,12 +19,12 @@
                     <div class="panel-icon">
                         <i class="fas fa-upload"></i>
                     </div>
-                    <h2 class="panel-title">Development Panel</h2>
+                    <h2 class="panel-title">Time Table Generator</h2>
                 </div>
                 <div class="panel-content">
                     <div class="card">
-                        <h3 class="card-title"><i class="fas fa-laptop-code"></i> Code Environment</h3>
-                        <p class="card-content">Powerful development tools with live preview and debugging capabilities.</p>
+                        <h3 class="card-title"><i class="fas fa-laptop-code"></i> Upload Excel File</h3>
+                        <p class="card-content">Submit a structured Excel file to automatically generate the time table. Ensure your data follows the required format for seamless integration and accurate scheduling.</p>
                         <div class="features">
                             <label class="file-upload feature">
                                 <input type="file" id="fileInput" accept=".xlsx, .txt" />
@@ -37,16 +33,12 @@
                             </label>
                             Sheet Names
                             <select id="worksheetName" class="feature">
-                                <option value="" hidden>No sheet chosen</option>
+                                <option value="" hidden>-select-</option>
                             </select>
-                            <style>
-                                input[type="checkbox"] {
-                                    display: inline;
-                                    width: fit-content;
-                                }
-                            </style>
-                            <span>Assign Class Tutor to First Period <input type="checkbox" id="tutorFirstPeriod" checked></span>
-                            <button class="action-btn" id="fetchTeachersData">Fetch Teachers Data</button>
+                            <span style="width: fit-content; margin-inline: auto;">
+                                <span>Assign Class Teacher to First Period <input type="checkbox" id="tutorFirstPeriod" checked></span>
+                                <button style="width: fit-content; margin-inline: auto;" class="action-btn" id="fetchTeachersData">Generate schedule</button>
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -56,19 +48,19 @@
             <div class="panel left-panel hideScrollbar">
                 <div class="panel-header">
                     <div class="panel-icon">
-                        <i class="fas fa-palette"></i>
+                        <i class="fas fa-chalkboard-teacher"></i>
                     </div>
-                    <h2 class="panel-title">Design Panel</h2>
+                    <h2 class="panel-title">Teacher-Wise Schedule</h2>
                 </div>
                 <div class="panel-content">
                     <div class="card">
-                        <h3 class="card-title"><i class="fas fa-brush"></i> Creative Tools</h3>
-                        <p class="card-content">Access our suite of design tools to create stunning visuals for any project.</p>
+                        <!-- <h3 class="card-title"><i class="fa-solid fa-user-graduate"></i> Teacher</h3> -->
+                        <p class="card-content">Preview the teaching schedule to confirm that subjects and time slots are correctly allocated.</p>
                         <div class="features">
                             <select id="teacherNameDropdown" class="feature">
                                 <option value="" hidden>-select-</option>
                             </select>
-                            <button class="action-btn" id="showTeacherTimeTable">Create Time Table</button>
+                            <button class="action-btn" id="showTeacherTimeTable">Preview</button>
                         </div>
                     </div>
                 </div>
@@ -76,20 +68,19 @@
             <div class="panel right-panel hideScrollbar">
                 <div class="panel-header">
                     <div class="panel-icon">
-                        <i class="fas fa-code"></i>
+                        <i class="fas fa-school"></i>
                     </div>
-                    <h2 class="panel-title">Development Panel</h2>
+                    <h2 class="panel-title">Class-Wise Schedule</h2>
                 </div>
                 <div class="panel-content">
                     <div class="card">
-                        <h3 class="card-title"><i class="fas fa-laptop-code"></i> Code Environment</h3>
-                        <p class="card-content">Powerful development tools with live preview and debugging capabilities.</p>
-
+                        <!-- <h3 class="card-title"><i class="fas fa-users"></i> Class</h3> -->
+                        <p class="card-content">Review the assigned subjects and time slots for your class. You can make adjustments if anything needs to be updated.</p>
                         <div class="features">
                             <select id="classNameDropdown" class="feature">
                                 <option value="" hidden>-select-</option>
                             </select>
-                            <button class="action-btn" id="classTeacherTimeTable">Create Time Table</button>
+                            <button class="action-btn" id="classTeacherTimeTable">Preview</button>
                         </div>
                     </div>
                 </div>
@@ -105,8 +96,8 @@
                     </span>
                     <div class="btn-container">
                         <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;" id="customizeTable">Edit</button>
-                        <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;" id="cancelUpdate">Cancel</button>
-                        <button class="action-btn" style="margin-top: 0;" id="saveAs">Save as</button>
+                        <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;"  id="cancelUpdate">Cancel</button>
+                        <button class="action-btn" style="margin-top: 0;" id="saveAs">Export all</button>
                     </div>
                 </div>
                 <div class="panel-content" id="TeacherTimeTableContainer">
@@ -207,12 +198,6 @@
             <div class="popup-footer"></div>
         </div>
     </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script>
-  console.log(typeof saveAs); // should print "function"
-</script>
 
     <script src="Utility.js"></script>
     <script src="popup.js"></script>
