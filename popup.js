@@ -51,10 +51,6 @@ class Popup {
         });
     }
 
-    Custom(title, popupContent, btns) {
-        this.#showPopup(title, popupContent);
-    }
-
     #Close = () => {
         this.#container.classList.add("hidden");
         document.body.style.overflow = "";

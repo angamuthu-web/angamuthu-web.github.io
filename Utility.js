@@ -5,6 +5,7 @@ function ArrayToString(array) {
     for (let i = 0; i < array.length; i++) { values += (i == 0) ? array[i] : `, ${array[i]}`; }
 
     return values;
+
 }
 
 const populateDropdown = (dropdown, items, joinDropEl = false) => {
@@ -17,36 +18,42 @@ const populateDropdown = (dropdown, items, joinDropEl = false) => {
 function GetElementCount(array, element) {
     if (array === undefined || array.length === 0) return 0;
 
-    let count = 0; array.forEach(item => { if (!item) return; if (item.subject === element) count++; });
+    let count = 0; array.forEach(item => {
+        if (!item) return;
+        if (item.subject === element) count++;
+    });
 
     return count;
+
 }
 
-class UniqueRandom {
-    constructor(min, max, canResetOnExhausted = false) { 
-        this.min = Math.ceil(min); 
-        this.max = Math.floor(max); 
-        this.canResetOnExhausted = canResetOnExhausted; 
+class UniqueRandomFromArray {
+    constructor(array, canResetOnExhausted = false) {
+        this.source = Array.from(array);
+        this.canResetOnExhausted = canResetOnExhausted;
         this.used = new Set();
     }
 
     next() {
-        if (this.used.size >= (this.max - this.min + 1)) { 
-            if (this.canResetOnExhausted) this.used = new Set(); 
-            else return -1; 
+        if (this.used.size >= this.source.length) {
+            if (this.canResetOnExhausted) this.used.clear();
+            else return -1;
         }
 
-        let value;
+        let index, value;
         do {
-            value = Math.floor(Math.random() * (this.max - this.min + 1)) + this.min;
-        } while (this.used.has(value));
+            index = Math.floor(Math.random() * this.source.length);
+            value = this.source[index];
+        } while (this.used.has(index));
 
-        this.used.add(value);
+        this.used.add(index);
         return value;
-
     }
 
-    usedSize() { return this.used.size; }
+    usedSize() {
+        return this.used.size;
+    }
+
 }
 
 function isEqual(arr1, arr2) {
@@ -54,19 +61,35 @@ function isEqual(arr1, arr2) {
 
     if (typeof arr1 !== typeof arr2) return false;
 
-    if (Array.isArray(arr1) && Array.isArray(arr2)) { if (arr1.length !== arr2.length) return false; for (let i = 0; i < arr1.length; i++) { if (!isEqual(arr1[i], arr2[i])) return false; } return true; }
+    if (Array.isArray(arr1) && Array.isArray(arr2)) {
+        if (arr1.length !== arr2.length) return false;
+        for (let i = 0; i < arr1.length; i++) {
+            if (!isEqual(arr1[i], arr2[i])) return false;
+        } return true;
+    }
 
-    if (typeof arr1 === "object" && arr1 !== null && arr2 !== null) { const keysA = Object.keys(arr1); const keysB = Object.keys(arr2); if (keysA.length !== keysB.length) return false; for (let key of keysA) { if (!isEqual(arr1[key], arr2[key])) return false; } return true; }
+    if (typeof arr1 === "object" && arr1 !== null && arr2 !== null) {
+        const keysA = Object.keys(arr1); const keysB = Object.keys(arr2);
+        if (keysA.length !== keysB.length) return false;
+        for (let key of keysA) {
+            if (!isEqual(arr1[key], arr2[key])) return false;
+        }
+        return true;
+    }
 
     return false;
+
 }
 
 function CreateElement(tag, attributes, content = "") {
     const el = document.createElement(tag);
 
-    for (const attribute in attributes) { el.setAttribute(attribute, attributes[attribute]); }
+    for (const attribute in attributes) {
+        el.setAttribute(attribute, attributes[attribute]);
+    }
 
     el.innerHTML = content;
 
     return el;
+
 }

@@ -28,6 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const TimeTable = new Table(el.table.el);
 
     let workbook = new ExcelJS.Workbook(), isValid = false, state = "idle", className, schoolClone, draggedCell = null, isScheduleCreated = false;
+    let tSIndex, cSIndex;
 
     const formatPeriods = (data, prefix = "RemainingPeriods:") => {
         let string = `${prefix} `;
@@ -105,10 +106,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const day = target.parentElement.dataset.rowIndex;
         const period = target.dataset.colIndex;
-        const elDiv = CreateElement("div", { class: "unreservedPeriod", draggable: "true" },
-            `<span>${spans[0].textContent}</span> - <span>${spans[1].textContent}</span>`);
-        elDiv.addEventListener("dragstart", e => draggedCell = e.target);
-        elDiv.addEventListener("dragend", () => draggedCell = null);
+        const elDiv = CreateElement("div", { class: "unreservedPeriod", draggable: "true" }, `<span>${spans[0].textContent}</span> - <span>${spans[1].textContent}</span>`);
+        elDiv.addEventListener("dragstart", e => { draggedCell = e.target; draggedCell.style.opacity = "0.5"; });
+        elDiv.addEventListener("dragend", () => { draggedCell.style.opacity = ""; draggedCell = null; });
         el.unreservedContainer.appendChild(elDiv);
 
         schoolClone.UnreservePeriod(className, spans[0].textContent, spans[1].textContent, day, period);
@@ -132,10 +132,9 @@ document.addEventListener("DOMContentLoaded", () => {
             for (const sub in periodCount[teacherName]) {
                 const unassigned = teacher.TotalPeriodPerWeek(sub, className) - periodCount[teacherName][sub];
                 for (let i = 0; i < unassigned; i++) {
-                    const elDiv = CreateElement("div", { class: "unreservedPeriod", draggable: "true" },
-                        `<span>${sub}</span> - <span>${teacherName}</span>`);
-                    elDiv.addEventListener("dragstart", e => draggedCell = e.target);
-                    elDiv.addEventListener("dragend", () => draggedCell = null);
+                    const elDiv = CreateElement("div", { class: "unreservedPeriod", draggable: "true" }, `<span>${sub}</span> - <span>${teacherName}</span>`);
+                    elDiv.addEventListener("dragstart", e => { draggedCell = e.target; draggedCell.style.opacity = "0.5"; });
+                    elDiv.addEventListener("dragend", () => { draggedCell.style.opacity = ""; draggedCell = null; });
                     el.unreservedContainer.appendChild(elDiv);
                 }
             }
@@ -144,6 +143,19 @@ document.addEventListener("DOMContentLoaded", () => {
         TimeTable.GetCells().forEach(setupDragEvents);
         el.customizeBtn.removeEventListener("click", enterEditMode);
         el.customizeBtn.addEventListener("click", applyUpdates);
+    };
+
+    const exitEditMode = async () => {
+        state = "idle";
+
+        document.getElementById("TeacherTimeTableContainer").classList.remove("editing");
+        el.customizeBtn.textContent = "Edit";
+        el.cancelBtn.style.display = "none";
+
+        TimeTable.GetCells().forEach(removeDragEvents);
+        el.customizeBtn.removeEventListener("click", applyUpdates);
+        el.customizeBtn.addEventListener("click", enterEditMode);
+        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className));
     };
 
     const applyUpdates = () => {
@@ -218,23 +230,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
         populateDropdown(el.teacherDropdown, Object.keys(school.GetTeachers()), true, `<option value="" hidden>-select-</option>`);
         populateDropdown(el.classDropdown, Object.keys(school.GetClasses()), true, `<option value="" hidden>-select-</option>`);
-        if (el.reserveFP.checked) school.test();
-        school.GenerateTimetable();
+        school.GenerateTimetable(el.reserveFP.checked);
 
         document.querySelector(".container").children[1].scrollIntoView({ behavior: "smooth", block: "start" });
         isScheduleCreated = true;
         TimeTable.Clear();
+        tSIndex = null;
+        cSIndex = null;
+        console.log(school.GetClasses());
     };
 
     const previewTeacher = async () => {
-        if (state === "edit" && !(await popup.Warning("You have unsaved changes. Do you want to discard them?"))) return;
+        const newSIndex = el.teacherDropdown.selectedIndex;
+        if (newSIndex === tSIndex) return;
+        if (state === "edit") {
+            if (await popup.Warning("You have unsaved changes. Do you want to discard them?")) exitEditMode();
+            else { el.teacherDropdown.selectedIndex = tSIndex; return; }
+        }
 
-        document.getElementById("TeacherTimeTableContainer").classList.remove("editing");
-        el.customizeBtn.textContent = "Edit";
+        cSIndex = null;
         el.customizeBtn.style.display = "none";
-        el.cancelBtn.style.display = "none";
-        state = "idle";
-
+        tSIndex = el.teacherDropdown.selectedIndex;
         const teacherName = el.teacherDropdown.value;
         if (!teacherName) return popup.Error("No teacher selected. Please choose one from the dropdown.");
 
@@ -247,10 +263,16 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const previewClass = async () => {
-        if (state === "edit" && !(await popup.Warning("You have unsaved changes. Do you want to discard them?"))) return;
+        const newSIndex = el.classDropdown.selectedIndex;
+        if (newSIndex === cSIndex) return;
+        if (state === "edit") {
+            if (await popup.Warning("You have unsaved changes. Do you want to discard them?")) exitEditMode();
+            else { el.classDropdown.selectedIndex = cSIndex; return; }
+        }
 
-        state = "idle";
+        tSIndex = null;
         className = el.classDropdown.value;
+        cSIndex = el.classDropdown.selectedIndex;
         if (!className) return popup.Error("No class selected. Please choose one from the dropdown.");
 
         const classObj = school.GetClass(className);
@@ -271,10 +293,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const allSheets = {
             ...school.GetTeachers(),
-            ...school.GetClasses() // Assuming this returns a similar structure
+            ...school.GetClasses()
         };
 
-        // Loop through each sheet and append
         for (const [sheetName, data] of Object.entries(allSheets)) {
             const formattedArray = formatWeeklySchedule(data.GetTimeTable());
             const sheet = workbook.addWorksheet(sheetName);
@@ -346,7 +367,8 @@ function sheetToJson(worksheet) {
 }
 
 function formatWeeklySchedule(array) {
-    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]; const headers = [null, "Period 1\n09:30AM 10:10AM", "Period 2\n10:10AM 10:40AM", "Break", "Period 3\n10:50AM 11:30AM", "Period 4\n11:30AM 12:10PM", "Break", "Period 5\n01:10PM 01:50PM", "Period 6\n01:50PM 02:30PM", "Break", "Period 7\n02:40PM 03:20PM", "Period 8\n03:20PM 04:00PM"];
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    const headers = [null, "Period 1\n09:30AM 10:10AM", "Period 2\n10:10AM 10:40AM", "Break", "Period 3\n10:50AM 11:30AM", "Period 4\n11:30AM 12:10PM", "Break", "Period 5\n01:10PM 01:50PM", "Period 6\n01:50PM 02:30PM", "Break", "Period 7\n02:40PM 03:20PM", "Period 8\n03:20PM 04:00PM"];
 
     const schedule = Array.from({ length: 6 }, () => Array(12).fill(null));
 
