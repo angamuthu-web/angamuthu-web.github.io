@@ -93,3 +93,7 @@ function CreateElement(tag, attributes, content = "") {
     return el;
 
 }
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}

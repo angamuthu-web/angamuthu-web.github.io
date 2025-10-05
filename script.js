@@ -89,6 +89,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const confirm = await popup.Warning("This period is already reserved for another class.");
             if (!confirm) return;
         }
+        if (schoolClone.GetClass(className).IsMaxPeriodPerDayReached(schoolClone.GetTeacher(teacherName), day, subject)
+            && !await popup.Warning("Daily limit reached. Would you like to proceed anyway?")) { return; }
 
         schoolClone.ReservePeriod(className, teacherName, subject, day, period);
         spans.forEach(span => target.appendChild(span));
@@ -111,7 +113,7 @@ document.addEventListener("DOMContentLoaded", () => {
         elDiv.addEventListener("dragend", () => { draggedCell.style.opacity = ""; draggedCell = null; });
         el.unreservedContainer.appendChild(elDiv);
 
-        schoolClone.UnreservePeriod(className, spans[0].textContent, spans[1].textContent, day, period);
+        schoolClone.UnreservePeriod(className, spans[1].textContent, spans[0].textContent, day, period);
         el.periodCount.textContent = formatPeriods(schoolClone.GetPeroidCountOfTeachers(className));
         target.innerHTML = "";
     };
@@ -202,13 +204,13 @@ document.addEventListener("DOMContentLoaded", () => {
         reader.onload = async event => {
             const data = new Uint8Array(event.target.result);
             await workbook.xlsx.load(data);
-            populateDropdown(el.sheetDropdown, workbook.worksheets.map(sheet => sheet.name), true, `<option value="" hidden>No sheet chosen</option>`);
+            populateDropdown(el.sheetDropdown, workbook.worksheets.map(sheet => sheet.name), true, `<option value="" hidden>-select-</option>`);
         };
         reader.readAsArrayBuffer(file);
     };
 
     const validateSheet = (sheetObj) => {
-        const requiredFields = ["TeacherName", "Subject", "Classes", "PeriodPerDay", "PeriodPerWeek", "TutorTo"];
+        const requiredFields = ["TeacherName", "Subject", "Classes", "PeriodPerDay", "PeriodPerWeek", "PeriodRange"];
         return sheetObj && sheetObj.length > 0 && requiredFields.every(field => field in sheetObj[0]);
     };
 
@@ -223,9 +225,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!isValid) return popup.Error("Data format mismatch.");
         el.fetchBtn.textContent = "Re-Generate schedule";
 
-        dataSheet.forEach(({ TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek, TutorTo }) => {
+        dataSheet.forEach(({ TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek, PeriodRange, TutorTo }) => {
             const classList = Classes.replace(/\s/g, "").split(",");
-            school.NewTeacher(TeacherName, Subject, classList, PeriodPerDay, PeriodPerWeek, TutorTo);
+            const periodRange = PeriodRange.replace(/\s/g, "").split(",").map(Number).map(n => n - 1);
+            school.NewTeacher(TeacherName, Subject, classList, PeriodPerDay, PeriodPerWeek, periodRange, TutorTo);
         });
 
         populateDropdown(el.teacherDropdown, Object.keys(school.GetTeachers()), true, `<option value="" hidden>-select-</option>`);
@@ -237,7 +240,7 @@ document.addEventListener("DOMContentLoaded", () => {
         TimeTable.Clear();
         tSIndex = null;
         cSIndex = null;
-        console.log(school.GetClasses());
+        console.log(school.GetClasses(), school.GetTeachers());
     };
 
     const previewTeacher = async () => {
@@ -312,13 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = "Teachers-Timetable.xlsx";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        TriggerDownload(buffer, "Timetable.xlsx");
     }
 
     const populateDropdown = (dropdown, items, clear = false, hiddenEl = "") => {
@@ -367,8 +364,7 @@ function sheetToJson(worksheet) {
 }
 
 function formatWeeklySchedule(array) {
-    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-    const headers = [null, "Period 1\n09:30AM 10:10AM", "Period 2\n10:10AM 10:40AM", "Break", "Period 3\n10:50AM 11:30AM", "Period 4\n11:30AM 12:10PM", "Break", "Period 5\n01:10PM 01:50PM", "Period 6\n01:50PM 02:30PM", "Break", "Period 7\n02:40PM 03:20PM", "Period 8\n03:20PM 04:00PM"];
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]; const headers = [null, "Period 1\n09:30AM 10:10AM", "Period 2\n10:10AM 10:40AM", "Break", "Period 3\n10:50AM 11:30AM", "Period 4\n11:30AM 12:10PM", "Break", "Period 5\n01:10PM 01:50PM", "Period 6\n01:50PM 02:30PM", "Break", "Period 7\n02:40PM 03:20PM", "Period 8\n03:20PM 04:00PM"];
 
     const schedule = Array.from({ length: 6 }, () => Array(12).fill(null));
 
@@ -411,4 +407,14 @@ function styleCellRange(sheet, startRow, endRow, startCol, endCol, styleOptions)
             };
         }
     }
+}
+
+function TriggerDownload(buffer, fileName) {
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
