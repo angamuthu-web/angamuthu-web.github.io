@@ -5,12 +5,13 @@ document.addEventListener("DOMContentLoaded", () => {
         fileInput: document.getElementById("fileInput"),
         fileNameLabel: document.querySelector(".file-name"),
         reserveFP: document.getElementById("tutorFirstPeriod"),
-        fetchBtn: document.getElementById("fetchTeachersData"),
+        fetchBtn: document.getElementById("UploadData"),
         sheetDropdown: document.getElementById("worksheetName"),
         teacherDropdown: document.getElementById("teacherNameDropdown"),
         classDropdown: document.getElementById("classNameDropdown"),
         previewTeacherBtn: document.getElementById("showTeacherTimeTable"),
-        previewClassBtn: document.getElementById("classTeacherTimeTable"),
+        previewClassBtn: document.getElementById("PreviewClassTimeTable"),
+        generateTimetableBtn: document.getElementById("GenerateclassTimeTable"),
         customizeBtn: document.getElementById("customizeTable"),
         cancelBtn: document.getElementById("cancelUpdate"),
         periodCount: document.getElementById("remainingPeriod"),
@@ -28,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const TimeTable = new Table(el.table.el);
 
     let workbook = new ExcelJS.Workbook(), isValid = false, state = "idle", className, schoolClone, draggedCell = null, isScheduleCreated = false;
-    let tSIndex, cSIndex;
+    let tSIndex, cSIndex, projectData;
 
     const formatPeriods = (data, prefix = "RemainingPeriods:") => {
         let string = `${prefix} `;
@@ -199,14 +200,24 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!file) return;
 
         el.fileNameLabel.textContent = file.name;
-        el.fetchBtn.textContent = "Generate schedule";
         const reader = new FileReader();
-        reader.onload = async event => {
-            const data = new Uint8Array(event.target.result);
-            await workbook.xlsx.load(data);
-            populateDropdown(el.sheetDropdown, workbook.worksheets.map(sheet => sheet.name), true, `<option value="" hidden>-select-</option>`);
-        };
-        reader.readAsArrayBuffer(file);
+        const fileArr = file.name.split(".");
+        const fileExtension = fileArr[fileArr.length - 1];
+        if (fileExtension === "json") {
+            reader.onload = async event => {
+                const text = event.target.result;
+                projectData = JSON.parse(text);
+            };
+            reader.readAsText(file);
+        } else {
+            reader.onload = async event => {
+                const data = new Uint8Array(event.target.result);
+                await workbook.xlsx.load(data);
+                projectData = null;
+                populateDropdown(el.sheetDropdown, workbook.worksheets.map(sheet => sheet.name), true, `<option value="" hidden>-select-</option>`);
+            };
+            reader.readAsArrayBuffer(file);
+        }
     };
 
     const validateSheet = (sheetObj) => {
@@ -214,8 +225,15 @@ document.addEventListener("DOMContentLoaded", () => {
         return sheetObj && sheetObj.length > 0 && requiredFields.every(field => field in sheetObj[0]);
     };
 
-    const generateTimetable = () => {
+    const geatherData = () => {
         if (state === "edit") return popup.Error("Re-scheduling unavailable while in edit mode. Please exit edit mode to proceed.");
+        if (projectData) {
+            school = ImportProject(projectData);
+            populateDropdown(el.teacherDropdown, Object.keys(school.GetTeachers()), true, `<option value="" hidden>-select-</option>`);
+            populateDropdown(el.classDropdown, Object.keys(school.GetClasses()), true, `<option value="" hidden>-select-</option>`);
+            document.querySelector(".container").children[1].scrollIntoView({ behavior: "smooth", block: "start" });
+            return;
+        }
         school = new School();
         const sheet = workbook.getWorksheet(el.sheetDropdown.value);
         if (!sheet) return popup.Error("Select a sheet to continue.");
@@ -223,7 +241,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const dataSheet = sheetToJson(sheet);
         isValid = validateSheet(dataSheet);
         if (!isValid) return popup.Error("Data format mismatch.");
-        el.fetchBtn.textContent = "Re-Generate schedule";
 
         dataSheet.forEach(({ TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek, PeriodRange, TutorTo }) => {
             const classList = Classes.replace(/\s/g, "").split(",");
@@ -233,15 +250,33 @@ document.addEventListener("DOMContentLoaded", () => {
 
         populateDropdown(el.teacherDropdown, Object.keys(school.GetTeachers()), true, `<option value="" hidden>-select-</option>`);
         populateDropdown(el.classDropdown, Object.keys(school.GetClasses()), true, `<option value="" hidden>-select-</option>`);
-        school.GenerateTimetable(el.reserveFP.checked);
 
         document.querySelector(".container").children[1].scrollIntoView({ behavior: "smooth", block: "start" });
-        isScheduleCreated = true;
-        TimeTable.Clear();
-        tSIndex = null;
-        cSIndex = null;
-        console.log(school.GetClasses(), school.GetTeachers());
     };
+
+    const generateTimetable = async () => {
+        
+        className = el.classDropdown.value;
+        if (state === "edit") {
+            if (await popup.Warning("You have unsaved changes. Do you want to discard them?")) exitEditMode();
+            else { el.teacherDropdown.selectedIndex = tSIndex; return; }
+        }
+        if (!className) return popup.Error("No class selected. Please choose one from the dropdown.");
+        tSIndex = null;
+        cSIndex = el.classDropdown.selectedIndex;
+
+        const classObj = school.GetClass(className);
+        school.ClearClassTimetable(className);
+        el.table.title.textContent = className;
+        el.table.subtitle.textContent = `(${classObj.GetTutor().name})`;
+        TimeTable.Clear();
+        school.GenerateTimetable(classObj, el.reserveFP.checked);
+        displayTimeTable(classObj.GetTimeTable());
+        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className));
+
+        el.customizeBtn.style.display = "block";
+        el.generateTimetableBtn.textContent = "Re-Generate Schedule";
+    }
 
     const previewTeacher = async () => {
         const newSIndex = el.teacherDropdown.selectedIndex;
@@ -272,6 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (await popup.Warning("You have unsaved changes. Do you want to discard them?")) exitEditMode();
             else { el.classDropdown.selectedIndex = cSIndex; return; }
         }
+        el.generateTimetableBtn.textContent = "Generate Schedule";
 
         tSIndex = null;
         className = el.classDropdown.value;
@@ -286,9 +322,28 @@ document.addEventListener("DOMContentLoaded", () => {
         el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className));
 
         el.customizeBtn.style.display = "block";
+        if(classObj.isScheduleCreated()) el.generateTimetableBtn.textContent = "Re-Generate Schedule";
     };
 
-    const download = async () => {
+    const download = async (event, clsName, data) => {
+        const className = clsName ??  !tSIndex ? el.classDropdown.value : el.teacherDropdown.value;
+        if(!className) await popup.Error("No time schedule available for download at this moment.");
+        const isScheduleCreated = !tSIndex ? school.GetClass(className).isScheduleCreated() : school.GetTeacher(className).isScheduleCreated();
+        if (!isScheduleCreated && !await popup.Warning("No time schedule available for download at this moment. Do you want download Empty Wrokbook?")) return false;
+        if (state === "edit") return popup.Error("Download unavailable while in edit mode. Please exit edit mode to proceed.");
+
+        const timetable = data ??  !tSIndex ? school.GetClass(className).GetTimeTable() : school.GetTeacher(className).GetTimeTable();
+        const workbook = new ExcelJS.Workbook();
+        
+        CreateSheet(workbook, className, timetable);
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        TriggerDownload(blob, `Timetable_${className}.xlsx`);
+        // SaveProject(school.toJSON());
+    }
+
+    const downloadAll = async () => {
         // Create workbook
         if (!isScheduleCreated) return popup.Error("No time schedule available for download at this moment.");
         if (state === "edit") return popup.Error("Download unavailable while in edit mode. Please exit edit mode to proceed.");
@@ -300,22 +355,12 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         for (const [sheetName, data] of Object.entries(allSheets)) {
-            const formattedArray = formatWeeklySchedule(data.GetTimeTable());
-            const sheet = workbook.addWorksheet(sheetName);
-
-            formattedArray.forEach(row => sheet.addRow(row));
-
-            ['D1:D6', 'G1:G6', 'J1:J6'].forEach(range => sheet.mergeCells(range));
-
-            sheet.columns = formattedArray[0].map((_, index) => ({
-                width: index !== 0 && index % 3 === 0 ? 8 : 18
-            }));
-
-            styleCellRange(sheet, 1, 6, 1, 12);
+            CreateSheet(workbook, sheetName, data.GetTimeTable())
         }
 
         const buffer = await workbook.xlsx.writeBuffer();
-        TriggerDownload(buffer, "Timetable.xlsx");
+        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        TriggerDownload(blob, "Timetable.xlsx");
     }
 
     const populateDropdown = (dropdown, items, clear = false, hiddenEl = "") => {
@@ -329,14 +374,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
     el.fileInput.addEventListener("change", handleFileChange);
 
-    el.fetchBtn.addEventListener("click", generateTimetable);
+    el.fetchBtn.addEventListener("click", geatherData);
     el.previewTeacherBtn.addEventListener("click", previewTeacher);
     el.previewClassBtn.addEventListener("click", previewClass);
+    el.generateTimetableBtn.addEventListener("click", generateTimetable);
     el.customizeBtn.addEventListener("click", enterEditMode);
     el.cancelBtn.addEventListener("click", cancelUpdates);
     el.downloadBtn.addEventListener("click", download);
 
 });
+
+function SaveProject(data) {
+    const jsonString = JSON.stringify(data, null, 2); 
+    const blob = new Blob([jsonString], { type: "application/json" });
+    TriggerDownload(blob, `project.json`);
+}
+
+function ImportProject(jsonString) {
+    let classes = {};
+    let teachers = {};
+
+    for (const _class in jsonString["classes"]) {
+        const classData = jsonString["classes"][_class];
+        classes[_class] = new Class(classData.name, classData.reservedPeriod, classData.teachers, classData.tutor, classData.periodCount, classData.scheduleCreated);
+    }
+
+    for (const teacher in jsonString["teachers"]) {
+        const teacherData = jsonString["teachers"][teacher];
+        teachers[teacher] = new Teacher(teacherData.name, teacherData.tutorTo, teacherData.subjects, teacherData.reservedPeriod, teacherData.reservedPeriodCount, teacherData.scheduleCreated);
+    }
+    
+    return new School(classes, teachers);
+}
 
 function sheetToJson(worksheet) {
     const json = []; const header = [];
@@ -361,6 +430,21 @@ function sheetToJson(worksheet) {
 
     return json;
 
+}
+
+function CreateSheet(workbook, sheetName, data) {
+    const formattedArray = formatWeeklySchedule(data);
+    const sheet = workbook.addWorksheet(sheetName);
+
+    formattedArray.forEach(row => sheet.addRow(row));
+
+    ['D1:D6', 'G1:G6', 'J1:J6'].forEach(range => sheet.mergeCells(range));
+
+    sheet.columns = formattedArray[0].map((_, index) => ({
+        width: index !== 0 && index % 3 === 0 ? 8 : 18
+    }));
+
+    styleCellRange(sheet, 1, 6, 1, 12);
 }
 
 function formatWeeklySchedule(array) {
@@ -409,8 +493,7 @@ function styleCellRange(sheet, startRow, endRow, startCol, endCol, styleOptions)
     }
 }
 
-function TriggerDownload(buffer, fileName) {
-    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+function TriggerDownload(blob, fileName) {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = fileName;

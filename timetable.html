@@ -27,7 +27,7 @@
                         <p class="card-content">Submit a structured Excel file to automatically generate the time table. Ensure your data follows the required format for seamless integration and accurate scheduling.</p>
                         <div class="features">
                             <label class="file-upload feature">
-                                <input type="file" id="fileInput" accept=".xlsx, .txt" />
+                                <input type="file" id="fileInput" accept=".xlsx, .json" />
                                 <span class="file-btn">Choose File</span>
                                 <span class="file-name">No file chosen</span>
                             </label>
@@ -36,8 +36,7 @@
                                 <option value="" hidden>-select-</option>
                             </select>
                             <span style="width: fit-content; margin-inline: auto;">
-                                <span>Assign Class Teacher to First Period <input type="checkbox" id="tutorFirstPeriod" checked></span>
-                                <button style="width: fit-content; margin-inline: auto;" class="action-btn" id="fetchTeachersData">Generate schedule</button>
+                                <button style="width: fit-content; margin-inline: auto;" class="action-btn" id="UploadData">Upload Data</button>
                             </span>
                         </div>
                     </div>
@@ -78,7 +77,11 @@
                             <select id="classNameDropdown" class="feature">
                                 <option value="" hidden>-select-</option>
                             </select>
-                            <button class="action-btn" id="classTeacherTimeTable">Preview</button>
+                            <span>Assign Class Teacher to First Period <input type="checkbox" id="tutorFirstPeriod" checked></span>
+                            <div class="btn-container">
+                                <button class="action-btn" id="GenerateclassTimeTable">Generate Schedule</button>
+                                <button class="action-btn" id="PreviewClassTimeTable">Preview</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -95,7 +98,7 @@
                     <div class="btn-container">
                         <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;" id="customizeTable">Edit</button>
                         <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;"  id="cancelUpdate">Cancel</button>
-                        <button class="action-btn" style="margin-top: 0;" id="saveAs">Export all</button>
+                        <button class="action-btn" style="margin-top: 0;" id="saveAs">Export</button>
                     </div>
                 </div>
                 <div class="panel-content" id="TeacherTimeTableContainer">

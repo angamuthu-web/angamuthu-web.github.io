@@ -1,12 +1,13 @@
 class Teacher {
-    #reservedPeriod; #reservedPeriodCount; #name; #subjects; #tutorTo;
+    #reservedPeriod; #reservedPeriodCount; #name; #subjects; #tutorTo; #scheduleCreated;
 
-    constructor(name, tutorTo = {}, subjects = {}, reservedPeriod = [new Array(8), new Array(8), new Array(8), new Array(8), new Array(8)], reservedPeriodCount = {}) {
+    constructor(name, tutorTo = {}, subjects = {}, reservedPeriod = [new Array(8), new Array(8), new Array(8), new Array(8), new Array(8)], reservedPeriodCount = {}, scheduleCreated = false) {
         this.#name = name;
         this.#subjects = subjects;
         this.#tutorTo = tutorTo;
         this.#reservedPeriod = reservedPeriod;
         this.#reservedPeriodCount = reservedPeriodCount;
+        this.#scheduleCreated = scheduleCreated;
     }
 
     Name() { return this.#name; }
@@ -54,7 +55,7 @@ class Teacher {
 
     IsPeriodReserved(day, period) {
         let isReserved = false;
-        if (this.#reservedPeriod[day][period] !== undefined) isReserved = true;
+        if (this.#reservedPeriod[day][period]) isReserved = true;
 
         return isReserved;
     }
@@ -99,9 +100,23 @@ class Teacher {
 
         return freePeriods;
     }
+    
+    isScheduleCreated() { return this.#scheduleCreated }
+    ScheduleCreated(isCreated) { this.#scheduleCreated = isCreated }
 
     Clone() {
-        return new Teacher(this.#name, this.#tutorTo, structuredClone(this.#subjects), structuredClone(this.#reservedPeriod), structuredClone(this.#reservedPeriodCount));
+        return new Teacher(this.#name, this.#tutorTo, structuredClone(this.#subjects), structuredClone(this.#reservedPeriod), structuredClone(this.#reservedPeriodCount), this.#scheduleCreated);
+    }
+
+    toJSON() {
+        return {
+            name: this.#name,
+            reservedPeriod: this.#reservedPeriod,
+            subjects: this.#subjects,
+            tutorTo: this.#tutorTo,
+            reservedPeriodCount: this.#reservedPeriodCount,
+            scheduleCreated: this.#scheduleCreated
+        };
     }
 
 }
@@ -113,13 +128,15 @@ class Class {
     #reservedPeriod;
     #tutor;
     #periodCount;
+    #scheduleCreated;
 
-    constructor(name, reservedPeriod = [new Array(8), new Array(8), new Array(8), new Array(8), new Array(8)], teachers = {}, tutor = {}, periodCount = {}) {
+    constructor(name, reservedPeriod = [new Array(8), new Array(8), new Array(8), new Array(8), new Array(8)], teachers = {}, tutor = {}, periodCount = {}, scheduleCreated = false) {
         this.#name = name;
         this.#reservedPeriod = reservedPeriod;
         this.#teachers = teachers;
         this.#tutor = tutor;
         this.#periodCount = periodCount;
+        this.#scheduleCreated = scheduleCreated;
     }
 
     Name() { return this.#name; }
@@ -168,7 +185,7 @@ class Class {
 
     IsPeriodReserved(day, period) {
         let isReserved = false;
-        if (this.#reservedPeriod[day][period] !== undefined) isReserved = true;
+        if (this.#reservedPeriod[day][period]) isReserved = true;
 
         return isReserved;
     }
@@ -212,6 +229,9 @@ class Class {
         return freePeriods;
     }
 
+    isScheduleCreated() { return this.#scheduleCreated }
+    ScheduleCreated(isCreated) { this.#scheduleCreated = isCreated }
+
     GetUnreserveCount(subject, teacher) {
         return teacher.TotalPeriodPerWeek(subject, this.#name) - this.#periodCount['total'][subject];
     }
@@ -219,7 +239,18 @@ class Class {
     GetPeriod(day, period) { return this.#reservedPeriod[day][period] }
 
     Clone() {
-        return new Class(this.#name, structuredClone(this.#reservedPeriod), structuredClone(this.#teachers), structuredClone(this.#tutor), structuredClone(this.#periodCount));
+        return new Class(this.#name, structuredClone(this.#reservedPeriod), structuredClone(this.#teachers), structuredClone(this.#tutor), structuredClone(this.#periodCount), this.#scheduleCreated);
+    }
+    
+    toJSON() {
+        return {
+            name: this.#name,
+            reservedPeriod: this.#reservedPeriod,
+            teachers: this.#teachers,
+            tutor: this.#tutor,
+            periodCount: this.#periodCount,
+            scheduleCreated: this.#scheduleCreated
+        };
     }
 
 }
@@ -263,7 +294,56 @@ class School {
         }
     }
 
-    GenerateTimetable(shouldAssignFirstPeriodTeacher) {
+    ClearClassTimetable(className) {
+        const cls = this.#classes[className];
+        for (let day = 0; day < 5; day++) {
+            for (let period = 0; period < 8; period++) {
+                const periodData = cls.GetPeriod(day, period);
+                if(!periodData) continue;
+                this.UnreservePeriod(className, periodData.teacher, periodData.subject, day, period);
+            }
+        }
+    }
+
+    async GenerateTimetable(cls, FirstClassTeacher = false) {
+        if (FirstClassTeacher) this.ReserveFirstPeriod(cls);
+        cls.GetSubjects().forEach(subject => {
+            const teacher = this.#teachers[cls.GetTeacher(subject)];
+            const randomDayObj = new UniqueRandomFromArray([0, 1, 2, 3, 4], true);
+            const totalPeriod = teacher.TotalPeriodPerWeek(subject, cls.Name());
+            const reservedPeriodCount = teacher.GetReservedPeriodCount(subject, cls.Name()) ?? 0;
+            let randomDay, periods;
+
+            let remainingUnResPeriod = totalPeriod - reservedPeriodCount;
+            for (let tPeriod = 0; tPeriod < remainingUnResPeriod; tPeriod++) {
+                console.log(teacher.IsPeriodReserved(0, 1), cls.IsPeriodReserved(0, 1), cls.Name(), teacher.Name(), subject);
+                if (!cls.IsWeekContainFreePeriodForTeacher(teacher, subject)) break;
+
+                do {
+                    randomDay = randomDayObj.next();
+                } while (!cls.IsDayContainFreePeriod(teacher, randomDay, subject) || cls.GetPeriodCount(randomDay, subject) >= teacher.MaxPeriodPerDay(subject, cls.Name()));
+
+                periods = new UniqueRandomFromArray(teacher.GetPeriodRange(subject, cls.Name()));
+                let period;
+
+                do {
+
+                    period = periods.next();
+                    if (period === -1) break;
+
+                } while (cls.IsPeriodReserved(randomDay, period) || teacher.IsPeriodReserved(randomDay, period));
+
+                if (!cls.IsPeriodReserved(randomDay, period) && !teacher.IsPeriodReserved(randomDay, period)) {
+                    cls.ReservePeriod(randomDay, period, subject);
+                    teacher.ReservePeriod(randomDay, period, subject, cls.Name());
+                    teacher.ScheduleCreated(true);
+                }
+            }
+        });
+        cls.ScheduleCreated(true);
+    }
+
+    GenerateAllTimetable(shouldAssignFirstPeriodTeacher = false) {
 
         /*const isValid = (cls, day, period, teacher, subject, periodRange) => {
             return !teacher.IsPeriodReserved(day, period)
@@ -310,40 +390,7 @@ class School {
             await start(_class);
         }*/
         Object.values(this.#classes).forEach(_class => {
-            if (shouldAssignFirstPeriodTeacher) this.ReserveFirstPeriod(_class);
-            _class.GetSubjects().forEach(subject => {
-                const teacher = this.#teachers[_class.GetTeacher(subject)];
-
-                const randomDayObj = new UniqueRandomFromArray([0, 1, 2, 3, 4], true);
-                const totalPeriod = teacher.TotalPeriodPerWeek(subject, _class.Name());
-                const reservedPeriodCount = teacher.GetReservedPeriodCount(subject, _class.Name()) ?? 0;
-                let randomDay, periods;
-
-                let remainingUnResPeriod = totalPeriod - reservedPeriodCount;
-                for (let tPeriod = 0; tPeriod < remainingUnResPeriod; tPeriod++) {
-
-                    if (!_class.IsWeekContainFreePeriodForTeacher(teacher, subject)) break;
-
-                    do {
-                        randomDay = randomDayObj.next();
-                    } while (!_class.IsDayContainFreePeriod(teacher, randomDay, subject) || _class.GetPeriodCount(randomDay, subject) >= teacher.MaxPeriodPerDay(subject, _class.Name()));
-
-                    periods = new UniqueRandomFromArray([0, 1, 2, 3, 4, 5, 6, 7]);
-                    let period;
-
-                    do {
-
-                        period = periods.next();
-                        if (period === -1) break;
-
-                    } while (_class.IsPeriodReserved(randomDay, period) || teacher.IsPeriodReserved(randomDay, period));
-
-                    if (!_class.IsPeriodReserved(randomDay, period) && !teacher.IsPeriodReserved(randomDay, period)) {
-                        _class.ReservePeriod(randomDay, period, subject);
-                        teacher.ReservePeriod(randomDay, period, subject, _class.Name());
-                    }
-                }
-            });
+            this.GenerateTimetable(_class, shouldAssignFirstPeriodTeacher);
         });
     }
 
@@ -408,6 +455,20 @@ class School {
         }
 
         return new School(cloneClasses, cloneTeachers);
+    }
+
+    toJSON() {
+        let classJson = {};
+        let teachersJson = {};
+        for (const _class in this.#classes) {
+            classJson[_class] = this.#classes[_class].toJSON();
+        }
+
+        for (const teacher in this.#teachers) {
+            teachersJson[teacher] = this.#teachers[teacher].toJSON();
+        }
+
+        return {classes: classJson, teachers: teachersJson}
     }
 
 }
