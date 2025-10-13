@@ -27,7 +27,7 @@
                         <p class="card-content">Submit a structured Excel file to automatically generate the time table. Ensure your data follows the required format for seamless integration and accurate scheduling.</p>
                         <div class="features">
                             <label class="file-upload feature">
-                                <input type="file" id="fileInput" accept=".xlsx, .json" />
+                                <input type="file" id="fileInput" accept=".xlsx, .json">
                                 <span class="file-btn">Choose File</span>
                                 <span class="file-name">No file chosen</span>
                             </label>
@@ -79,8 +79,8 @@
                             </select>
                             <span>Assign Class Teacher to First Period <input type="checkbox" id="tutorFirstPeriod" checked></span>
                             <div class="btn-container">
-                                <button class="action-btn" id="GenerateclassTimeTable">Generate Schedule</button>
                                 <button class="action-btn" id="PreviewClassTimeTable">Preview</button>
+                                <button class="action-btn" id="GenerateclassTimeTable" disabled>Generate Schedule</button>
                             </div>
                         </div>
                     </div>
@@ -97,8 +97,7 @@
                     </span>
                     <div class="btn-container">
                         <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;" id="customizeTable">Edit</button>
-                        <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;"  id="cancelUpdate">Cancel</button>
-                        <button class="action-btn" style="margin-top: 0;" id="saveAs">Export</button>
+                        <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;" id="cancelUpdate">Cancel</button>
                     </div>
                 </div>
                 <div class="panel-content" id="TeacherTimeTableContainer">
@@ -180,22 +179,69 @@
 
                         </tbody>
                     </table>
-                    <div class="table-editor hideScrollbar"></div>
+                    <div class="table-editor scroll-area"></div>
+                </div>
+                <div class="btn-container" style="margin-block: 10px; justify-content: right;">
+                    <button class="action-btn" style="margin-top: 0; width: fit-content;" id="save">Save</button>
+                    <button class="action-btn" style="margin-top: 0; width: fit-content;" id="export">Download</button>
                 </div>
             </div>
         </div>
         <footer>
-            <p id="remainingPeriod"></p>
+            <span id="remainingPeriod"></span><span id="more" style="display: none;">...<a>more info</a></span>
         </footer>
+        
     </div>
+    <style>
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 50px;
+            padding: 20px;
+        }
 
+        .listContainer {
+            box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 45vh;
+            overflow-y: auto;
+            margin: 20px 5px;
+        }
+
+        .checkbox-group h3 {
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .checkbox-group label {
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 8px;
+            transform: scale(1.2);
+        }
+        
+        a:hover {
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    </style>
     <div id="popup" class="popup hidden">
         <div class="popup-wrapper card">
             <div class="popup-header">
                 <div class="title"></div>
                 <div class="close"><i class="fa-solid fa-xmark"></i></div>
             </div>
-            <div class="popup-content"></div>
+            <div class="popup-content scroll-area"></div>
             <div class="popup-footer"></div>
         </div>
     </div>

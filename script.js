@@ -1,6 +1,6 @@
 if (sessionStorage.getItem("isLoggedIn") !== "true") { window.location.href = "./index.html"; }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     const el = {
         fileInput: document.getElementById("fileInput"),
         fileNameLabel: document.querySelector(".file-name"),
@@ -16,7 +16,9 @@ document.addEventListener("DOMContentLoaded", () => {
         cancelBtn: document.getElementById("cancelUpdate"),
         periodCount: document.getElementById("remainingPeriod"),
         unreservedContainer: document.querySelector(".table-editor"),
-        downloadBtn: document.getElementById("saveAs"),
+        downloadBtn: document.getElementById("export"),
+        saveBtn: document.getElementById("save"),
+        moreBtn: document.getElementById("more"),
         table: {
             el: document.getElementById("TeacherTimeTable"),
             title: document.getElementById("tableTitle"),
@@ -57,6 +59,17 @@ document.addEventListener("DOMContentLoaded", () => {
         );
     }
 
+    const ClearTable = () => {
+        el.table.title.textContent = "";
+        el.table.subtitle.textContent = ``;
+        el.customizeBtn.style.display = "none";
+        el.generateTimetableBtn.textContent = "Generate Schedule";
+        el.generateTimetableBtn.disabled = true;
+        tSIndex = null;
+        cSIndex = null;
+        TimeTable.Clear();
+    }
+
     const setupDragEvents = cell => {
         cell.addEventListener("dragover", e => e.preventDefault());
         cell.addEventListener("drop", handleDrop);
@@ -87,7 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (schoolClone.GetTeacher(teacherName).IsPeriodReserved(day, period)) {
-            const confirm = await popup.Warning("This period is already reserved for another class.");
+            const confirm = await popup.Warning(`This period is already assigned to this teacher for class ${schoolClone.GetTeacher(teacherName).GetPeriod(day, period)}. Would you like to combine the classes?`);
             if (!confirm) return;
         }
         if (schoolClone.GetClass(className).IsMaxPeriodPerDayReached(schoolClone.GetTeacher(teacherName), day, subject)
@@ -96,7 +109,7 @@ document.addEventListener("DOMContentLoaded", () => {
         schoolClone.ReservePeriod(className, teacherName, subject, day, period);
         spans.forEach(span => target.appendChild(span));
         _draggedCell.remove();
-        el.periodCount.textContent = formatPeriods(schoolClone.GetPeroidCountOfTeachers(className));
+        el.periodCount.textContent = formatPeriods(schoolClone.GetPeroidCountOfTeachers(className), "");
     };
 
     const handleDoubleClick = async e => {
@@ -115,7 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
         el.unreservedContainer.appendChild(elDiv);
 
         schoolClone.UnreservePeriod(className, spans[1].textContent, spans[0].textContent, day, period);
-        el.periodCount.textContent = formatPeriods(schoolClone.GetPeroidCountOfTeachers(className));
+        el.periodCount.textContent = formatPeriods(schoolClone.GetPeroidCountOfTeachers(className), "");
         target.innerHTML = "";
     };
 
@@ -158,7 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
         TimeTable.GetCells().forEach(removeDragEvents);
         el.customizeBtn.removeEventListener("click", applyUpdates);
         el.customizeBtn.addEventListener("click", enterEditMode);
-        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className));
+        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
     };
 
     const applyUpdates = () => {
@@ -173,7 +186,7 @@ document.addEventListener("DOMContentLoaded", () => {
         TimeTable.GetCells().forEach(removeDragEvents);
         el.customizeBtn.removeEventListener("click", applyUpdates);
         el.customizeBtn.addEventListener("click", enterEditMode);
-        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className));
+        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
     };
 
     const cancelUpdates = async () => {
@@ -192,7 +205,7 @@ document.addEventListener("DOMContentLoaded", () => {
         TimeTable.GetCells().forEach(removeDragEvents);
         el.customizeBtn.removeEventListener("click", applyUpdates);
         el.customizeBtn.addEventListener("click", enterEditMode);
-        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className));
+        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
     };
 
     const handleFileChange = e => {
@@ -203,10 +216,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const reader = new FileReader();
         const fileArr = file.name.split(".");
         const fileExtension = fileArr[fileArr.length - 1];
+        showLoadingOverlay();
         if (fileExtension === "json") {
             reader.onload = async event => {
                 const text = event.target.result;
                 projectData = JSON.parse(text);
+                hideLoadingOverlay();
+                el.sheetDropdown.disabled = true;
+                el.sheetDropdown.selectedIndex = 0;
             };
             reader.readAsText(file);
         } else {
@@ -215,6 +232,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 await workbook.xlsx.load(data);
                 projectData = null;
                 populateDropdown(el.sheetDropdown, workbook.worksheets.map(sheet => sheet.name), true, `<option value="" hidden>-select-</option>`);
+                hideLoadingOverlay();
+                el.sheetDropdown.disabled = false;
             };
             reader.readAsArrayBuffer(file);
         }
@@ -227,32 +246,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const geatherData = () => {
         if (state === "edit") return popup.Error("Re-scheduling unavailable while in edit mode. Please exit edit mode to proceed.");
-        if (projectData) {
-            school = ImportProject(projectData);
-            populateDropdown(el.teacherDropdown, Object.keys(school.GetTeachers()), true, `<option value="" hidden>-select-</option>`);
-            populateDropdown(el.classDropdown, Object.keys(school.GetClasses()), true, `<option value="" hidden>-select-</option>`);
-            document.querySelector(".container").children[1].scrollIntoView({ behavior: "smooth", block: "start" });
-            return;
+        if (projectData) { school = ImportProject(projectData); }
+        else {
+            school = new School();
+            const sheet = workbook.getWorksheet(el.sheetDropdown.value);
+            if (!sheet) return popup.Error("Select a sheet to continue.");
+
+            const dataSheet = sheetToJson(sheet);
+            isValid = validateSheet(dataSheet);
+            if (!isValid) return popup.Error("Data format mismatch.");
+
+            dataSheet.forEach(({ TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek, PeriodRange, TutorTo }) => {
+                const classList = Classes.replace(/\s/g, "").split(",");
+                const periodRange = PeriodRange.replace(/\s/g, "").split(",").map(Number).map(n => n - 1);
+                school.NewTeacher(TeacherName, Subject, classList, PeriodPerDay, PeriodPerWeek, periodRange, TutorTo);
+            });
         }
-        school = new School();
-        const sheet = workbook.getWorksheet(el.sheetDropdown.value);
-        if (!sheet) return popup.Error("Select a sheet to continue.");
-
-        const dataSheet = sheetToJson(sheet);
-        isValid = validateSheet(dataSheet);
-        if (!isValid) return popup.Error("Data format mismatch.");
-
-        dataSheet.forEach(({ TeacherName, Subject, Classes, PeriodPerDay, PeriodPerWeek, PeriodRange, TutorTo }) => {
-            const classList = Classes.replace(/\s/g, "").split(",");
-            const periodRange = PeriodRange.replace(/\s/g, "").split(",").map(Number).map(n => n - 1);
-            school.NewTeacher(TeacherName, Subject, classList, PeriodPerDay, PeriodPerWeek, periodRange, TutorTo);
-        });
 
         populateDropdown(el.teacherDropdown, Object.keys(school.GetTeachers()), true, `<option value="" hidden>-select-</option>`);
         populateDropdown(el.classDropdown, Object.keys(school.GetClasses()), true, `<option value="" hidden>-select-</option>`);
 
         document.querySelector(".container").children[1].scrollIntoView({ behavior: "smooth", block: "start" });
+        ClearTable();
     };
+
+    const onClassDropdownChange = () => {
+        if(cSIndex !== el.classDropdown.selectedIndex) el.generateTimetableBtn.disabled = true;
+        else el.generateTimetableBtn.disabled = false;
+    }
 
     const generateTimetable = async () => {
         
@@ -272,7 +293,7 @@ document.addEventListener("DOMContentLoaded", () => {
         TimeTable.Clear();
         school.GenerateTimetable(classObj, el.reserveFP.checked);
         displayTimeTable(classObj.GetTimeTable());
-        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className));
+        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
 
         el.customizeBtn.style.display = "block";
         el.generateTimetableBtn.textContent = "Re-Generate Schedule";
@@ -292,12 +313,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const teacherName = el.teacherDropdown.value;
         if (!teacherName) return popup.Error("No teacher selected. Please choose one from the dropdown.");
 
+        el.generateTimetableBtn.disabled = true;
+        el.moreBtn.style.display = "";
         const teacher = school.GetTeacher(teacherName);
         el.table.title.textContent = teacherName;
         el.table.subtitle.textContent = `(${teacher.TutorFor().class})`;
         TimeTable.Clear();
         displayTimeTable(teacher.GetTimeTable());
-        el.periodCount.textContent = formatPeriods(school.GetTeacher(teacherName).GetReservedPeriodCountAll());
+        el.periodCount.textContent = formatPeriods(school.GetTeacher(teacherName).GetReservedPeriodCountAll(), "");
     };
 
     const previewClass = async () => {
@@ -314,53 +337,50 @@ document.addEventListener("DOMContentLoaded", () => {
         cSIndex = el.classDropdown.selectedIndex;
         if (!className) return popup.Error("No class selected. Please choose one from the dropdown.");
 
+        el.generateTimetableBtn.disabled = false;
+        el.moreBtn.style.display = "none";
         const classObj = school.GetClass(className);
         el.table.title.textContent = className;
         el.table.subtitle.textContent = `(${classObj.GetTutor().name})`;
         TimeTable.Clear();
         displayTimeTable(classObj.GetTimeTable());
-        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className));
+        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
 
         el.customizeBtn.style.display = "block";
-        if(classObj.isScheduleCreated()) el.generateTimetableBtn.textContent = "Re-Generate Schedule";
+        if (classObj.isScheduleCreated()) el.generateTimetableBtn.textContent = "Re-Generate Schedule";
     };
 
-    const download = async (event, clsName, data) => {
-        const className = clsName ??  !tSIndex ? el.classDropdown.value : el.teacherDropdown.value;
-        if(!className) await popup.Error("No time schedule available for download at this moment.");
-        const isScheduleCreated = !tSIndex ? school.GetClass(className).isScheduleCreated() : school.GetTeacher(className).isScheduleCreated();
-        if (!isScheduleCreated && !await popup.Warning("No time schedule available for download at this moment. Do you want download Empty Wrokbook?")) return false;
-        if (state === "edit") return popup.Error("Download unavailable while in edit mode. Please exit edit mode to proceed.");
-
-        const timetable = data ??  !tSIndex ? school.GetClass(className).GetTimeTable() : school.GetTeacher(className).GetTimeTable();
-        const workbook = new ExcelJS.Workbook();
-        
-        CreateSheet(workbook, className, timetable);
-
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-        TriggerDownload(blob, `Timetable_${className}.xlsx`);
-        // SaveProject(school.toJSON());
+    const save = async () => {
+        if (state === "edit") return popup.Error("Saving unavailable while in edit mode. Please exit edit mode to proceed.");
+        SaveProject(school.toJSON());
     }
 
-    const downloadAll = async () => {
+    const download = async () => {
         // Create workbook
-        if (!isScheduleCreated) return popup.Error("No time schedule available for download at this moment.");
         if (state === "edit") return popup.Error("Download unavailable while in edit mode. Please exit edit mode to proceed.");
+        const selectedNames = await popup.Custom("Downlods", downloadPopupContent(), [{ label: "Download", type: "ok", value: DownloadOption }, { label: "Cancle", type: "ok", value: false }]);
+        if (!selectedNames) return;
+        if (!selectedNames.classes.length && !selectedNames.teachers.length && !selectedNames.other.length) return popup.Error("No time schedule available for download at this moment.");
+        showLoadingOverlay();
         const workbook = new ExcelJS.Workbook();
 
-        const allSheets = {
-            ...school.GetTeachers(),
-            ...school.GetClasses()
-        };
-
-        for (const [sheetName, data] of Object.entries(allSheets)) {
-            CreateSheet(workbook, sheetName, data.GetTimeTable())
-        }
+        selectedNames["teachers"].forEach(name => {
+            CreateTimetableSheet(workbook, name, school.GetTeacher(name).GetTimeTable(), formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), ""));
+        });
+        selectedNames["classes"].forEach(name => {
+            CreateTimetableSheet(workbook, name, school.GetClass(name).GetTimeTable(), formatPeriods(school.GetPeroidCountOfTeachers(name), ""));
+        });
+        selectedNames["other"].forEach(name => {
+            switch(name) {
+                case "moreDetails":
+                    CreateFreePeriodSheet(workbook, "Free Period Details", Object.values(school.GetTeachers()));
+            }
+        });
 
         const buffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-        TriggerDownload(blob, "Timetable.xlsx");
+        TriggerDownload(blob, "Timetables.xlsx");
+        hideLoadingOverlay();
     }
 
     const populateDropdown = (dropdown, items, clear = false, hiddenEl = "") => {
@@ -372,20 +392,172 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     };
 
+    const onClickAll = function() {
+        const parent = this.parentElement.parentElement;
+        const allCheckbox = parent.querySelectorAll(`input[name="options"]`);
+        if(this.checked) {
+            allCheckbox.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+        } else {
+            allCheckbox.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        }
+    }
+
+    const onClickCheckBox = function() {
+        const grandParent = this.parentElement.parentElement.parentElement
+        const parent = this.parentElement.parentElement;
+        const allCheckbox = grandParent.querySelector(`[data-all-checkbox]`);
+        const allOption = parent.querySelectorAll(`input[name="options"]`)
+        if(!this.checked) {
+           allCheckbox.checked = false;
+        } else {
+            for (let index = 0; index < allOption.length; index++) {
+                if(!allOption[index].checked) {
+                    allCheckbox.checked = false;
+                    return;
+                }
+            }
+            allCheckbox.checked = true;
+        }
+        
+    }
+    
+    const downloadPopupContent = () => {
+        let teacherList = CreateElement("div", { "data-category": "teacher", "class": "checkbox-group scroll-area" }, "");
+        let classList = CreateElement("div", { "data-category": "class", "class": "checkbox-group scroll-area" }, "");
+        let otherList = CreateElement("div", { "data-category": "other", "class": "checkbox-group scroll-area" }, "");
+
+        const teachers = school.GetTeachers();
+        const classes = school.GetClasses();
+        teacherList.innerHTML = ``;
+        for (const teacher in teachers) {
+            teacherList.innerHTML += `<label><input type="checkbox" name="options" value="${teacher}"> ${teacher}</label>`;
+        }
+        classList.innerHTML = ``;
+        for (const cls in classes) {
+            classList.innerHTML += `<label><input type="checkbox" name="options" value="${cls}"> ${cls}</label>`;
+        }
+        otherList.innerHTML = ``;
+        otherList.innerHTML += `<label><input type="checkbox" name="options" value="moreDetails"> Free Period details</label>`;
+
+        const content = `<span class="listContainer">
+                            <h3>Teachers</h3>
+                            <label><input type="checkbox" data-all-checkbox="teacher"> All</label>
+                            ${teacherList.outerHTML}
+                        </span>
+                        <span class="listContainer">
+                            <h3>Classes</h3>
+                            <label><input type="checkbox" data-all-checkbox="class"> All</label>
+                            ${classList.outerHTML}
+                        </span>
+                        <span class="listContainer">
+                            <h3>Other</h3>
+                            <label><input type="checkbox" data-all-checkbox="other"> All</label>
+                            ${otherList.outerHTML}
+                        </span>`;
+        
+        const containersWrapperEl = CreateElement("div", { "class": "grid-container" }, content);
+
+        const teacherAllCheckBox = containersWrapperEl.querySelector('[data-all-checkbox="teacher"');
+        const classAllCheckBox = containersWrapperEl.querySelector('[data-all-checkbox="class"');
+        const otherAllCheckBox = containersWrapperEl.querySelector('[data-all-checkbox="other"');
+        
+        const cAllCheckBox = containersWrapperEl.querySelector('[data-category="class"]').querySelectorAll('input[name="options"]');
+        const tAllCheckBox = containersWrapperEl.querySelector('[data-category="teacher"]').querySelectorAll('input[name="options"]');
+        const oAllCheckBox = containersWrapperEl.querySelector('[data-category="other"]').querySelectorAll('input[name="options"]');
+        
+        teacherAllCheckBox.addEventListener("change", onClickAll);
+        classAllCheckBox.addEventListener("change", onClickAll);
+        otherAllCheckBox.addEventListener("change", onClickAll);
+
+        cAllCheckBox.forEach(checkbox => {
+            checkbox.addEventListener("change", onClickCheckBox);
+        });
+        tAllCheckBox.forEach(checkbox => {
+            checkbox.addEventListener("change", onClickCheckBox);
+        });
+        oAllCheckBox.forEach(checkbox => {
+            checkbox.addEventListener("change", onClickCheckBox);
+        });
+
+        return containersWrapperEl;
+    }
+
+    const DownloadOption = () => {
+        const clsChecked = document.querySelector('[data-category="class"]').querySelectorAll('input[name="options"]:checked');
+        const teachersChecked = document.querySelector('[data-category="teacher"]').querySelectorAll('input[name="options"]:checked');
+        const otherChecked = document.querySelector('[data-category="other"]').querySelectorAll('input[name="options"]:checked');
+        const classNames = Array.from(clsChecked).map(cb => cb.value);
+        const teacherNames = Array.from(teachersChecked).map(cb => cb.value);
+        const otherNames = Array.from(otherChecked).map(cb => cb.value);
+        return { classes: classNames, teachers: teacherNames, other: otherNames }
+    }
+
+    const freePeriodStruct = (name, totalPeriod, freePeriods) => {
+        return `<div data-teacher="${name}" style="margin: 5px;padding: 10px 10px 20px 10px;border-radius: 10px;">
+                    <div style="font-weight: 700;">${name}</div>
+                    <div style="padding-left: 15px;">
+                        <div>Total Periods: <span style="padding-left: 5px;">${totalPeriod}</span></div>
+                        <div>
+                            <span>Free Periods:</span>
+                            <table class="freePeriodTable">
+                                <tbody>
+                                    <tr><td>Monday</td><td>Tuesday</td><td>Wednesday</td><td>Thursday</td><td>Friday</td></tr>
+                                    <tr>
+                                        <td>${freePeriods[0] ? freePeriods[0].join(", ") : "-"}</td>
+                                        <td>${freePeriods[1] ? freePeriods[1].join(", ") : "-"}</td>
+                                        <td>${freePeriods[2] ? freePeriods[2].join(", ") : "-"}</td>
+                                        <td>${freePeriods[3] ? freePeriods[3].join(", ") : "-"}</td>
+                                        <td>${freePeriods[4] ? freePeriods[4].join(", ") : "-"}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>`;
+    }
+
+    const onClickMore = async () => {
+        let content = ``;
+        const teacherName = el.teacherDropdown.options[tSIndex].value;
+        const teacher = school.GetTeacher(teacherName);
+
+        const freePeriodsArr = [];
+        for (let day = 0; day < 5; day++) {
+            const todayFreePeriods = teacher.GetFreePeriods(day, [0, 1, 2, 3, 4, 5, 6, 7]);
+            const FormatPeriod = [];
+            for (let index = 0; index < todayFreePeriods.length; index++) {
+                FormatPeriod.push(++todayFreePeriods[index]);
+            }
+            freePeriodsArr.push(FormatPeriod);
+        }
+        content += freePeriodStruct(teacher.Name(), teacher.GetTotalReservedPeriod(), freePeriodsArr);
+
+        const selectedTeacher = el.teacherDropdown.options[tSIndex].value;
+
+        popup.Custom("More Details", content, [{ label: "Close", type: "", value: false }]);
+    }
+
     el.fileInput.addEventListener("change", handleFileChange);
 
     el.fetchBtn.addEventListener("click", geatherData);
     el.previewTeacherBtn.addEventListener("click", previewTeacher);
     el.previewClassBtn.addEventListener("click", previewClass);
+    el.classDropdown.addEventListener("change", onClassDropdownChange)
     el.generateTimetableBtn.addEventListener("click", generateTimetable);
     el.customizeBtn.addEventListener("click", enterEditMode);
     el.cancelBtn.addEventListener("click", cancelUpdates);
     el.downloadBtn.addEventListener("click", download);
+    el.saveBtn.addEventListener("click", save);
+    el.moreBtn.addEventListener("click", onClickMore);
 
 });
 
 function SaveProject(data) {
-    const jsonString = JSON.stringify(data, null, 2); 
+    const jsonString = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonString], { type: "application/json" });
     TriggerDownload(blob, `project.json`);
 }
@@ -401,9 +573,9 @@ function ImportProject(jsonString) {
 
     for (const teacher in jsonString["teachers"]) {
         const teacherData = jsonString["teachers"][teacher];
-        teachers[teacher] = new Teacher(teacherData.name, teacherData.tutorTo, teacherData.subjects, teacherData.reservedPeriod, teacherData.reservedPeriodCount, teacherData.scheduleCreated);
+        teachers[teacher] = new Teacher(teacherData.name, teacherData.tutorTo, teacherData.subjects, teacherData.reservedPeriod, teacherData.reservedPeriodCount, teacherData.scheduleCreated, teacherData.totalPeriod);
     }
-    
+
     return new School(classes, teachers);
 }
 
@@ -413,7 +585,6 @@ function sheetToJson(worksheet) {
     worksheet.eachRow((row, rowNumber) => {
         const rowValues = row.values;
 
-        // ExcelJS row.values is 1-based, so index 0 is undefined
         if (rowNumber === 1) {
             // First row is header
             for (let i = 1; i < rowValues.length; i++) {
@@ -430,21 +601,6 @@ function sheetToJson(worksheet) {
 
     return json;
 
-}
-
-function CreateSheet(workbook, sheetName, data) {
-    const formattedArray = formatWeeklySchedule(data);
-    const sheet = workbook.addWorksheet(sheetName);
-
-    formattedArray.forEach(row => sheet.addRow(row));
-
-    ['D1:D6', 'G1:G6', 'J1:J6'].forEach(range => sheet.mergeCells(range));
-
-    sheet.columns = formattedArray[0].map((_, index) => ({
-        width: index !== 0 && index % 3 === 0 ? 8 : 18
-    }));
-
-    styleCellRange(sheet, 1, 6, 1, 12);
 }
 
 function formatWeeklySchedule(array) {
@@ -468,6 +624,57 @@ function formatWeeklySchedule(array) {
 
     return schedule;
 
+}
+
+function formatMoreDetails(teacher) {
+
+    const freePeriodsArr = [];
+    for (let day = 0; day < 5; day++) {
+        const todayFreePeriods = teacher.GetFreePeriods(day, [0, 1, 2, 3, 4, 5, 6, 7]);
+        const FormatPeriod = [];
+        for (let index = 0; index < todayFreePeriods.length; index++) {
+            FormatPeriod.push(++todayFreePeriods[index]);
+        }
+        freePeriodsArr.push(FormatPeriod.join(", "));
+    }
+
+    return {name: teacher.Name(), totalPeriod: teacher.GetTotalReservedPeriod(), freePeriods: freePeriodsArr};
+}
+
+function CreateTimetableSheet(workbook, sheetName, data, reservedPeriodCount) {
+    const formattedArray = formatWeeklySchedule(data);
+    const sheet = workbook.addWorksheet(sheetName);
+
+    formattedArray.forEach(row => sheet.addRow(row));
+    sheet.getCell("A7").value = reservedPeriodCount;
+
+    ['D1:D6', 'G1:G6', 'J1:J6', 'A7:L7'].forEach(range => sheet.mergeCells(range));
+
+    sheet.columns = formattedArray[0].map((_, index) => ({
+        width: index !== 0 && index % 3 === 0 ? 8 : 18
+    }));
+
+    styleCellRange(sheet, 1, 7, 1, 12);
+}
+
+function CreateFreePeriodSheet(workbook, sheetName, data) {
+    const sheet = workbook.addWorksheet(sheetName);
+
+    const startRow = 1;
+    let endRow = 2;
+    const startCol = 1;
+    const endCol = 7;
+
+    sheet.addRow(["Name", "Total Allocated Period", "Free Periods"]);
+    sheet.addRow(["", "", "Monday", "Tuesday", "Wenseday", "Thusrday", "Friday"]);
+    sheet.columns = [0,1,2,3,4,5,6].map((_, index) => ({ width: 22 }));
+    ['A1:A2', 'B1:B2', 'C1:G1'].forEach(range => sheet.mergeCells(range));
+    data.forEach(teacher => {
+        const moreDetails = formatMoreDetails(teacher);
+        sheet.addRow([moreDetails.name, moreDetails.totalPeriod, ...moreDetails.freePeriods]);
+        endRow += 1;
+    });
+    styleCellRange(sheet, startRow, endRow, startCol, endCol);
 }
 
 function styleCellRange(sheet, startRow, endRow, startCol, endCol, styleOptions) {
@@ -500,4 +707,17 @@ function TriggerDownload(blob, fileName) {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+}
+
+function showLoadingOverlay() {
+    document.body.style.overflow = "hidden";
+    const overlay = document.createElement("div");
+    overlay.className = "loading-overlay";
+    document.body.appendChild(overlay);
+}
+
+function hideLoadingOverlay() {
+    const overlay = document.querySelector(".loading-overlay");
+    if (overlay) overlay.remove();
+    document.body.style.overflow = "";
 }

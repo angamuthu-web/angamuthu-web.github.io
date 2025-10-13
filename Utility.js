@@ -5,7 +5,6 @@ function ArrayToString(array) {
     for (let i = 0; i < array.length; i++) { values += (i == 0) ? array[i] : `, ${array[i]}`; }
 
     return values;
-
 }
 
 const populateDropdown = (dropdown, items, joinDropEl = false) => {
@@ -24,12 +23,11 @@ function GetElementCount(array, element) {
     });
 
     return count;
-
 }
 
 class UniqueRandomFromArray {
     constructor(array, canResetOnExhausted = false) {
-        this.source = Array.from(array);
+        this.source = Array.from(array); // clone to avoid mutation
         this.canResetOnExhausted = canResetOnExhausted;
         this.used = new Set();
     }
@@ -53,7 +51,6 @@ class UniqueRandomFromArray {
     usedSize() {
         return this.used.size;
     }
-
 }
 
 function isEqual(arr1, arr2) {
@@ -78,7 +75,6 @@ function isEqual(arr1, arr2) {
     }
 
     return false;
-
 }
 
 function CreateElement(tag, attributes, content = "") {
@@ -91,9 +87,4 @@ function CreateElement(tag, attributes, content = "") {
     el.innerHTML = content;
 
     return el;
-
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }

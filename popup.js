@@ -4,17 +4,19 @@ class Popup {
     #closeBtn = this.#container.querySelector(".popup-header .close");
     #body = this.#container.querySelector(".popup-content");
     #footer = this.#container.querySelector(".popup-footer");
+    #resolveFn = null;
 
     constructor() {
         this.#closeBtn.addEventListener("click", this.#Close);
     }
 
     #showPopup(title, content, buttons, callback) {
+        this.#resolveFn = callback;
         this.#container.classList.remove("hidden");
         document.body.style.overflow = "hidden";
 
         this.#title.textContent = title;
-        if(typeof content === "string") this.#body.innerHTML = content;
+        if (typeof content === "string") this.#body.innerHTML = content;
         else this.#body.append(content);
         this.#footer.innerHTML = "";
 
@@ -25,7 +27,7 @@ class Popup {
             btn.setAttribute("aria-label", `${label} warning`);
 
             const onClick = () => {
-                callback(value);
+                callback(typeof value === "function" ? value() : value);
                 this.#Close();
             };
 
@@ -51,13 +53,35 @@ class Popup {
         });
     }
 
+    Info(popupContent) {
+        return new Promise((resolve) => {
+            this.#showPopup("Info", popupContent, [
+                { label: "Ok", type: "ok", value: true }
+            ], resolve);
+        });
+    }
+
+    Custom(title, popupContent, buttons) {
+        return new Promise((resolve) => {
+            this.#showPopup(title, popupContent, buttons, resolve);
+        });
+    }
+
     #Close = () => {
+        if (this.#resolveFn) {
+            this.#resolveFn(false);
+            this.#resolveFn = null;
+        }
         this.#container.classList.add("hidden");
         document.body.style.overflow = "";
 
         this.#title.textContent = "";
         this.#body.innerHTML = "";
         this.#footer.innerHTML = "";
+    }
+
+    body() {
+        return this.#body;
     }
 
 }
