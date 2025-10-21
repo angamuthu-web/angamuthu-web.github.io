@@ -261,10 +261,8 @@ h1 {
 footer {
     text-align: center;
     padding: 25px;
-    background: var(--footer-bg);
     border-top: 1px solid var(--footer-border);
     font-size: 0.9rem;
-    opacity: 0.7;
 }
 
 .multi-select-dropdown {
@@ -487,9 +485,7 @@ select.feature>option {
 .styled-table td {
     padding: 12px 15px;
     font-size: 0.9rem;
-    color: var(--text-color);
-    /* border: 1px solid var(--card-border); */
-    border: 1px solid;
+    border: 1px solid #000;
     text-align: center;
 }
 
@@ -497,18 +493,21 @@ select.feature>option {
     background: var(--card-hover-bg);
 }
 
-.styled-table td span:first-child {
+.styled-table td span {
     display: block;
+    color: inherit;
+}
+
+.styled-table td span:first-child {
     font-size: 0.95rem;
     font-weight: 600;
-    color: var(--text-color);
+    /* color: var(--text-color); */
 }
 
 .styled-table td span:last-child {
-    display: block;
     font-size: 0.75rem;
     /* color: rgba(255, 255, 255, 0.7); */
-    color: rgba(0, 0, 0, 0.7);
+    /* color: rgba(0, 0, 0, 0.7); */
     margin-top: 4px;
 }
 
@@ -559,20 +558,16 @@ select.feature>option {
 }
 
 .panel-content .table-editor {
-    width: 0px;
-    height: 0;
-    transition: all 0.3s ease;
-    padding-block: 16px;
+    width: 200px;
+    height: unset;
+    padding: 16px;
+    background: var(--card-bg);
+    max-height: 410px;
 }
 
 .panel-content.editing .table-editor {
-    width: 200px;
-    height: unset;
-    background: var(--card-bg);
-    padding-inline: 16px;
     cursor: grab;
     box-shadow: 0 5px 15px var(--card-shadow);
-    max-height: 410px;
 }
 
 .unreservedPeriod {
@@ -713,4 +708,49 @@ button:disabled:hover {
   border: 3px solid transparent;
   border-radius: 10px;
   background-clip: content-box;
+}
+
+#remainingPeriod span{
+    padding: 5px;
+    border-radius: 5px;
+}
+
+[data-subject="TAMIL"] {
+    color: red;
+}
+
+[data-subject="ENGLISH"] {
+    color: indigo;
+}
+
+[data-subject="MATHS"] {
+    color: brown;
+}
+
+[data-subject="SCIENCE"] {
+    color: yellow;
+}
+
+[data-subject="SS"] {
+    color: green;
+}
+
+[data-subject="CC"] {
+    color: orange;
+}
+
+[data-subject="LIB"] {
+    color: indianred;
+}
+
+[data-subject="PET"] {
+    color: blue;
+}
+
+[data-subject="VE"] {
+    color: darkgreen;
+}
+
+[data-subject="DRAWING"] {
+    color: black;
 }

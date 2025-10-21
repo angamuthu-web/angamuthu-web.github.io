@@ -34,6 +34,21 @@ class Table {
         row.querySelector(`[data-col-index="${columnIndex}"]`).innerHTML = value;
     }
 
+    SetCellAttr(rowIndex, columnIndex, attrName, value) {
+        const row = this.#tableBody.querySelector(`[data-row-index="${rowIndex}"]`);
+        row.querySelector(`[data-col-index="${columnIndex}"]`).setAttribute(attrName, value);
+    }
+
+    GetCellAttr(rowIndex, columnIndex, attrName) {
+        const row = this.#tableBody.querySelector(`[data-row-index="${rowIndex}"]`);
+        return row.querySelector(`[data-col-index="${columnIndex}"]`).getAttribute(attrName);
+    }
+
+    RemoveCellAttr(rowIndex, columnIndex, attrName) {
+        const row = this.#tableBody.querySelector(`[data-row-index="${rowIndex}"]`);
+        row.querySelector(`[data-col-index="${columnIndex}"]`).removeAttribute(attrName);
+    }
+
     GetCells() {
         return this.#cells();
     }
@@ -41,6 +56,7 @@ class Table {
     Clear() {
         this.#tableBody.querySelectorAll(`[data-col-index]`).forEach(cell => {
             cell.innerHTML = "";
+            cell.removeAttribute("data-subject");
         });
     }
 

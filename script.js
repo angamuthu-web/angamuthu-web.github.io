@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         let string = `${prefix} `;
         for (const tName in data) {
             for (const subject in data[tName]) {
-                string += `${tName}(${subject}): ${data[tName][subject]} `;
+                string += `<span data-subject="${subject}" >${subject}(${tName}): ${data[tName][subject]}</span>`;
             }
         }
         return string;
@@ -52,19 +52,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const displayTimeTable = (table) => {
         TimeTable.Clear();
-        table.forEach((row, day) =>
-            row.forEach((cell, period) =>
-                TimeTable.ChangeCellValue(day, period, formatCell(cell))
-            )
-        );
+        table.forEach((row, day) => {
+            row.forEach((cell, period) => {
+                TimeTable.ChangeCellValue(day, period, formatCell(cell));
+                TimeTable.SetCellAttr(day, period, "data-subject", cell?.subject);
+            });
+        });
     }
 
     const ClearTable = () => {
         el.table.title.textContent = "";
         el.table.subtitle.textContent = ``;
         el.customizeBtn.style.display = "none";
-        el.generateTimetableBtn.textContent = "Generate Schedule";
-        el.generateTimetableBtn.disabled = true;
+        el.generateTimetableBtn.textContent = "Generate";
         tSIndex = null;
         cSIndex = null;
         TimeTable.Clear();
@@ -107,9 +107,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             && !await popup.Warning("Daily limit reached. Would you like to proceed anyway?")) { return; }
 
         schoolClone.ReservePeriod(className, teacherName, subject, day, period);
+        TimeTable.SetCellAttr(day, period, "data-subject", subject);
         spans.forEach(span => target.appendChild(span));
         _draggedCell.remove();
-        el.periodCount.textContent = formatPeriods(schoolClone.GetPeroidCountOfTeachers(className), "");
+        el.periodCount.innerHTML = formatPeriods(schoolClone.GetPeroidCountOfTeachers(className), "");
     };
 
     const handleDoubleClick = async e => {
@@ -127,8 +128,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         elDiv.addEventListener("dragend", () => { draggedCell.style.opacity = ""; draggedCell = null; });
         el.unreservedContainer.appendChild(elDiv);
 
+        TimeTable.RemoveCellAttr(day, period, "data-subject");
         schoolClone.UnreservePeriod(className, spans[1].textContent, spans[0].textContent, day, period);
-        el.periodCount.textContent = formatPeriods(schoolClone.GetPeroidCountOfTeachers(className), "");
+        el.periodCount.innerHTML = formatPeriods(schoolClone.GetPeroidCountOfTeachers(className), "");
         target.innerHTML = "";
     };
 
@@ -171,7 +173,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         TimeTable.GetCells().forEach(removeDragEvents);
         el.customizeBtn.removeEventListener("click", applyUpdates);
         el.customizeBtn.addEventListener("click", enterEditMode);
-        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
+        el.periodCount.innerHTML = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
     };
 
     const applyUpdates = () => {
@@ -186,7 +188,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         TimeTable.GetCells().forEach(removeDragEvents);
         el.customizeBtn.removeEventListener("click", applyUpdates);
         el.customizeBtn.addEventListener("click", enterEditMode);
-        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
+        el.periodCount.innerHTML = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
     };
 
     const cancelUpdates = async () => {
@@ -205,7 +207,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         TimeTable.GetCells().forEach(removeDragEvents);
         el.customizeBtn.removeEventListener("click", applyUpdates);
         el.customizeBtn.addEventListener("click", enterEditMode);
-        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
+        el.periodCount.innerHTML = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
     };
 
     const handleFileChange = e => {
@@ -271,7 +273,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     const onClassDropdownChange = () => {
-        if(cSIndex !== el.classDropdown.selectedIndex) el.generateTimetableBtn.disabled = true;
+        if(cSIndex !== el.classDropdown.selectedIndex && cSIndex) el.generateTimetableBtn.disabled = true;
         else el.generateTimetableBtn.disabled = false;
     }
 
@@ -293,10 +295,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         TimeTable.Clear();
         school.GenerateTimetable(classObj, el.reserveFP.checked);
         displayTimeTable(classObj.GetTimeTable());
-        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
+        el.periodCount.innerHTML = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
 
         el.customizeBtn.style.display = "block";
-        el.generateTimetableBtn.textContent = "Re-Generate Schedule";
+        el.generateTimetableBtn.textContent = "Re-Generate";
     }
 
     const previewTeacher = async () => {
@@ -313,14 +315,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const teacherName = el.teacherDropdown.value;
         if (!teacherName) return popup.Error("No teacher selected. Please choose one from the dropdown.");
 
-        el.generateTimetableBtn.disabled = true;
+        el.generateTimetableBtn.style.display = "none";
         el.moreBtn.style.display = "";
         const teacher = school.GetTeacher(teacherName);
         el.table.title.textContent = teacherName;
         el.table.subtitle.textContent = `(${teacher.TutorFor().class})`;
         TimeTable.Clear();
         displayTimeTable(teacher.GetTimeTable());
-        el.periodCount.textContent = formatPeriods(school.GetTeacher(teacherName).GetReservedPeriodCountAll(), "");
+        el.periodCount.innerHTML = formatPeriods(school.GetTeacher(teacherName).GetReservedPeriodCountAll(), "");
     };
 
     const previewClass = async () => {
@@ -330,24 +332,25 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (await popup.Warning("You have unsaved changes. Do you want to discard them?")) exitEditMode();
             else { el.classDropdown.selectedIndex = cSIndex; return; }
         }
-        el.generateTimetableBtn.textContent = "Generate Schedule";
+        el.generateTimetableBtn.textContent = "Generate";
 
         tSIndex = null;
         className = el.classDropdown.value;
         cSIndex = el.classDropdown.selectedIndex;
+        onClassDropdownChange();
         if (!className) return popup.Error("No class selected. Please choose one from the dropdown.");
 
-        el.generateTimetableBtn.disabled = false;
+        el.generateTimetableBtn.style.display = "";
         el.moreBtn.style.display = "none";
         const classObj = school.GetClass(className);
         el.table.title.textContent = className;
         el.table.subtitle.textContent = `(${classObj.GetTutor().name})`;
         TimeTable.Clear();
         displayTimeTable(classObj.GetTimeTable());
-        el.periodCount.textContent = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
+        el.periodCount.innerHTML = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
 
         el.customizeBtn.style.display = "block";
-        if (classObj.isScheduleCreated()) el.generateTimetableBtn.textContent = "Re-Generate Schedule";
+        if (classObj.isScheduleCreated()) el.generateTimetableBtn.textContent = "Re-Generate";
     };
 
     const save = async () => {
@@ -536,8 +539,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
         content += freePeriodStruct(teacher.Name(), teacher.GetTotalReservedPeriod(), freePeriodsArr);
 
-        const selectedTeacher = el.teacherDropdown.options[tSIndex].value;
-
         popup.Custom("More Details", content, [{ label: "Close", type: "", value: false }]);
     }
 
@@ -546,7 +547,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     el.fetchBtn.addEventListener("click", geatherData);
     el.previewTeacherBtn.addEventListener("click", previewTeacher);
     el.previewClassBtn.addEventListener("click", previewClass);
-    el.classDropdown.addEventListener("change", onClassDropdownChange)
+    el.classDropdown.addEventListener("change", onClassDropdownChange);
     el.generateTimetableBtn.addEventListener("click", generateTimetable);
     el.customizeBtn.addEventListener("click", enterEditMode);
     el.cancelBtn.addEventListener("click", cancelUpdates);
