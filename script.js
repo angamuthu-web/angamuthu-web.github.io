@@ -34,11 +34,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     let workbook = new ExcelJS.Workbook(), isValid = false, state = "idle", className, schoolClone, draggedCell = null, isScheduleCreated = false;
     let tSIndex, cSIndex, projectData;
 
-    const formatPeriods = (data, prefix = "RemainingPeriods:") => {
+    const formatPeriods = (data, prefix = "RemainingPeriods:", htmlElement = true) => {
         let string = `${prefix} `;
         for (const tName in data) {
             for (const subject in data[tName]) {
-                string += `<span data-subject="${subject}" >${subject}(${tName}): ${data[tName][subject]}</span>`;
+                htmlElement ? string += `<span data-subject="${subject}" >${subject}(${tName}): ${data[tName][subject]}</span>`
+                            : string += `${subject}(${tName}): ${data[tName][subject]}`;
             }
         }
         return string;
@@ -353,10 +354,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const workbook = new ExcelJS.Workbook();
 
         selectedNames["teachers"].forEach(name => {
-            CreateTimetableSheet(workbook, name, school.GetTeacher(name).GetTimeTable(), formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), ""));
+            CreateTimetableSheet(workbook, name, school.GetTeacher(name).GetTimeTable(), formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false));
         });
         selectedNames["classes"].forEach(name => {
-            CreateTimetableSheet(workbook, name, school.GetClass(name).GetTimeTable(), formatPeriods(school.GetPeroidCountOfTeachers(name), ""));
+            CreateTimetableSheet(workbook, name, school.GetClass(name).GetTimeTable(), formatPeriods(school.GetPeroidCountOfTeachers(name), "", false));
         });
         selectedNames["other"].forEach(name => {
             switch(name) {
