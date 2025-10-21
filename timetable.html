@@ -77,7 +77,6 @@
                             <select id="classNameDropdown" class="feature">
                                 <option value="" hidden>-select-</option>
                             </select>
-                            <span>Assign Class Teacher to First Period <input type="checkbox" id="tutorFirstPeriod" checked></span>
                             <div class="btn-container">
                                 <button class="action-btn" id="PreviewClassTimeTable">View</button>
                             </div>
@@ -94,7 +93,10 @@
                         <span class="panel-title" id="tableTitle"></span>
                         <span id="tutorName"></span>
                     </span>
-                    <button class="action-btn" style="display: none;margin: 0; width: fit-content;" id="GenerateclassTimeTable">Generate Schedule</button>
+                    <span style="display: none;" id="generateBtnContainer">
+                        <span>Assign Class Teacher to First Period <input type="checkbox" id="tutorFirstPeriod" checked></span>
+                        <button class="action-btn" style="margin: auto; width: fit-content;margin-top: 15px;" id="GenerateclassTimeTable">Generate Schedule</button>
+                    </span>
                     <div class="btn-container">
                         <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;" id="customizeTable">Edit</button>
                         <button class="action-btn" style="display: none; width: fit-content; margin-top: 0;" id="cancelUpdate">Cancel</button>
@@ -190,9 +192,6 @@
                 </div>
             </div>
         </div>
-        <footer>
-        </footer>
-        
     </div>
     <style>
         .grid-container {

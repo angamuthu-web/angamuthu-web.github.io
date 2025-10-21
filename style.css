@@ -551,9 +551,6 @@ select.feature>option {
     display: grid;
     grid-template-columns: 1fr auto;
     height: fit-content;
-}
-
-.panel-content.editing {
     gap: 15px;
 }
 
