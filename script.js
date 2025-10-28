@@ -347,28 +347,93 @@ document.addEventListener("DOMContentLoaded", async () => {
     const download = async () => {
         // Create workbook
         if (state === "edit") return popup.Error("Download unavailable while in edit mode. Please exit edit mode to proceed.");
-        const selectedNames = await popup.Custom("Downlods", downloadPopupContent(), [{ label: "Download", type: "ok", value: DownloadOption }, { label: "Cancle", type: "ok", value: false }]);
+        let content = `<span>Download As <input type="radio" name="downloadAs" value="excel" checked> Excel <input type="radio" name="downloadAs" value="pdf"> pdf</span>`;
+        const contentEl = CreateElement("div", null, content);
+        contentEl.append(downloadPopupContent());
+        const selectedNames = await popup.Custom("Downlods", contentEl.innerHTML, [{ label: "Download", type: "ok", value: DownloadOption }, { label: "Cancle", type: "ok", value: false }]);
         if (!selectedNames) return;
         if (!selectedNames.classes.length && !selectedNames.teachers.length && !selectedNames.other.length) return popup.Error("No time schedule available for download at this moment.");
         showLoadingOverlay();
-        const workbook = new ExcelJS.Workbook();
+        let document;
+        if (selectedNames.downloadAs === "excel") {
+            document = new ExcelJS.Workbook();
+        } else if(selectedNames.downloadAs === "pdf") {
+            const { jsPDF } = window.jspdf;
+            document = new jsPDF({orientation: "landscape", format: "a4"});
+        }
 
+        let timetables = [];
         selectedNames["teachers"].forEach(name => {
-            CreateTimetableSheet(workbook, name, school.GetTeacher(name).GetTimeTable(), formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false));
+            if(selectedNames.downloadAs === "excel") {
+                CreateTimetableSheet(document, name, school.GetTeacher(name).GetTimeTable(), formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false));
+            } else if(selectedNames.downloadAs === "pdf") {
+                timetables.push({title: name, timetable: formatWeeklySchedule(school.GetTeacher(name).GetTimeTable(), false)});
+            }
         });
         selectedNames["classes"].forEach(name => {
-            CreateTimetableSheet(workbook, name, school.GetClass(name).GetTimeTable(), formatPeriods(school.GetPeroidCountOfTeachers(name), "", false));
+            if(selectedNames.downloadAs === "excel") {
+            CreateTimetableSheet(document, name, school.GetClass(name).GetTimeTable(), formatPeriods(school.GetPeroidCountOfTeachers(name), "", false));
+            } else if(selectedNames.downloadAs === "pdf") {
+                timetables.push({title: name, timetable: formatWeeklySchedule(school.GetClass(name).GetTimeTable(), false)});
+            }
         });
         selectedNames["other"].forEach(name => {
             switch(name) {
                 case "moreDetails":
-                    CreateFreePeriodSheet(workbook, "Free Period Details", Object.values(school.GetTeachers()));
+                    CreateFreePeriodSheet(document, "Free Period Details", Object.values(school.GetTeachers()));
             }
         });
 
-        const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-        TriggerDownload(blob, "Timetables.xlsx");
+        switch(selectedNames.downloadAs) {
+            case "excel":
+                const buffer = await document.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                TriggerDownload(blob, "Timetables.xlsx");
+                break;
+            case "pdf":
+                let y = 20;
+                timetables.forEach((table, index) => {
+                    document.setFontSize(16);
+                    document.text(table.title, 14, y);
+                    
+                    table.timetable[0][3] = { content: 'Break', rowSpan: 6 };
+                    table.timetable[0][6] = { content: 'Break', rowSpan: 6 };
+                    table.timetable[0][9] = { content: 'Break', rowSpan: 6 };
+
+                    document.autoTable({
+                        startY: y + 10,
+                        head: [table.timetable[0]],
+                        body: table.timetable.slice(1),
+                        styles: {
+                            halign: 'center',
+                            valign: 'middle',
+                            lineWidth: 0.5,
+                            lineColor: [0, 0, 0],
+                            cellPadding: 4,
+                            fontSize: 10,
+                            textColor: 0,
+                            overflow: 'visible',
+                        },
+                        headStyles: {
+                            halign: 'center',
+                            valign: 'middle',
+                            fillColor: false,
+                            textColor: 0
+                        },
+                        alternateRowStyles: {
+                            fillColor: false
+                        }
+                    });
+
+                    if (index < timetables.length - 1) {
+                        document.addPage();
+                        y = 20;
+                    }
+                });
+                document.save();
+                break;
+        }
+        
         hideLoadingOverlay();
     }
 
@@ -415,75 +480,63 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     
     const downloadPopupContent = () => {
-        let teacherList = CreateElement("div", { "data-category": "teacher", "class": "checkbox-group scroll-area" }, "");
-        let classList = CreateElement("div", { "data-category": "class", "class": "checkbox-group scroll-area" }, "");
-        let otherList = CreateElement("div", { "data-category": "other", "class": "checkbox-group scroll-area" }, "");
+        const createCheckboxGroup = (category, items) => {
+            const group = CreateElement("div", { "data-category": category, "class": "checkbox-group scroll-area" }, "");
+            group.innerHTML = items.map(item =>
+                `<label><input type="checkbox" name="options" value="${item}"> ${item}</label>`
+            ).join("");
+            return group;
+        };
 
-        const teachers = school.GetTeachers();
-        const classes = school.GetClasses();
-        teacherList.innerHTML = ``;
-        for (const teacher in teachers) {
-            teacherList.innerHTML += `<label><input type="checkbox" name="options" value="${teacher}"> ${teacher}</label>`;
-        }
-        classList.innerHTML = ``;
-        for (const cls in classes) {
-            classList.innerHTML += `<label><input type="checkbox" name="options" value="${cls}"> ${cls}</label>`;
-        }
-        otherList.innerHTML = ``;
-        otherList.innerHTML += `<label><input type="checkbox" name="options" value="moreDetails"> Free Period details</label>`;
+        const teachers = Object.keys(school.GetTeachers());
+        const classes = Object.keys(school.GetClasses());
+        const otherItems = ["Free Period details"];
 
-        const content = `<span class="listContainer">
-                            <h3>Teachers</h3>
-                            <label><input type="checkbox" data-all-checkbox="teacher"> All</label>
-                            ${teacherList.outerHTML}
-                        </span>
-                        <span class="listContainer">
-                            <h3>Classes</h3>
-                            <label><input type="checkbox" data-all-checkbox="class"> All</label>
-                            ${classList.outerHTML}
-                        </span>
-                        <span class="listContainer">
-                            <h3>Other</h3>
-                            <label><input type="checkbox" data-all-checkbox="other"> All</label>
-                            ${otherList.outerHTML}
-                        </span>`;
-        
-        const containersWrapperEl = CreateElement("div", { "class": "grid-container" }, content);
+        const teacherList = createCheckboxGroup("teacher", teachers);
+        const classList = createCheckboxGroup("class", classes);
+        const otherList = createCheckboxGroup("other", otherItems);
 
-        const teacherAllCheckBox = containersWrapperEl.querySelector('[data-all-checkbox="teacher"');
-        const classAllCheckBox = containersWrapperEl.querySelector('[data-all-checkbox="class"');
-        const otherAllCheckBox = containersWrapperEl.querySelector('[data-all-checkbox="other"');
-        
-        const cAllCheckBox = containersWrapperEl.querySelector('[data-category="class"]').querySelectorAll('input[name="options"]');
-        const tAllCheckBox = containersWrapperEl.querySelector('[data-category="teacher"]').querySelectorAll('input[name="options"]');
-        const oAllCheckBox = containersWrapperEl.querySelector('[data-category="other"]').querySelectorAll('input[name="options"]');
-        
-        teacherAllCheckBox.addEventListener("change", onClickAll);
-        classAllCheckBox.addEventListener("change", onClickAll);
-        otherAllCheckBox.addEventListener("change", onClickAll);
+        const createSection = (title, category, listHTML) => `
+        <span class="listContainer">
+            <h3>${title}</h3>
+            <label><input type="checkbox" data-all-checkbox="${category}"> All</label>
+            ${listHTML}
+        </span>`;
 
-        cAllCheckBox.forEach(checkbox => {
-            checkbox.addEventListener("change", onClickCheckBox);
-        });
-        tAllCheckBox.forEach(checkbox => {
-            checkbox.addEventListener("change", onClickCheckBox);
-        });
-        oAllCheckBox.forEach(checkbox => {
-            checkbox.addEventListener("change", onClickCheckBox);
+        const content = [
+            createSection("Teachers", "teacher", teacherList.outerHTML),
+            createSection("Classes", "class", classList.outerHTML),
+            createSection("Other", "other", otherList.outerHTML)
+        ].join("");
+
+        const wrapper = CreateElement("div", { class: "grid-container" }, content);
+
+        ["teacher", "class", "other"].forEach(category => {
+            const allCheckbox = wrapper.querySelector(`[data-all-checkbox="${category}"]`);
+            const checkboxes = wrapper.querySelector(`[data-category="${category}"]`).querySelectorAll('input[name="options"]');
+
+            allCheckbox.addEventListener("change", onClickAll);
+            checkboxes.forEach(cb => cb.addEventListener("change", onClickCheckBox));
         });
 
-        return containersWrapperEl;
-    }
+        return wrapper;
+    };
 
     const DownloadOption = () => {
-        const clsChecked = document.querySelector('[data-category="class"]').querySelectorAll('input[name="options"]:checked');
-        const teachersChecked = document.querySelector('[data-category="teacher"]').querySelectorAll('input[name="options"]:checked');
-        const otherChecked = document.querySelector('[data-category="other"]').querySelectorAll('input[name="options"]:checked');
-        const classNames = Array.from(clsChecked).map(cb => cb.value);
-        const teacherNames = Array.from(teachersChecked).map(cb => cb.value);
-        const otherNames = Array.from(otherChecked).map(cb => cb.value);
-        return { classes: classNames, teachers: teacherNames, other: otherNames }
-    }
+        const getCheckedValues = category => {
+            return Array.from(
+                document.querySelector(`[data-category="${category}"]`)
+                    .querySelectorAll('input[name="options"]:checked')
+            ).map(cb => cb.value);
+        };
+
+        return {
+            classes: getCheckedValues("class"),
+            teachers: getCheckedValues("teacher"),
+            other: getCheckedValues("other"),
+            downloadAs: document.querySelector(`input[name="downloadAs"]:checked`).value
+        };
+    };
 
     const freePeriodStruct = (name, totalPeriod, freePeriods) => {
         return `<div data-teacher="${name}" style="margin: 5px;padding: 10px 10px 20px 10px;border-radius: 10px;">
@@ -590,8 +643,21 @@ function sheetToJson(worksheet) {
 
 }
 
-function formatWeeklySchedule(array) {
-    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]; const headers = [null, "Period 1\n09:30AM 10:10AM", "Period 2\n10:10AM 10:40AM", "Break", "Period 3\n10:50AM 11:30AM", "Period 4\n11:30AM 12:10PM", "Break", "Period 5\n01:10PM 01:50PM", "Period 6\n01:50PM 02:30PM", "Break", "Period 7\n02:40PM 03:20PM", "Period 8\n03:20PM 04:00PM"];
+function formatWeeklySchedule(array, visibleTiming = true) {
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    const headers = [null, 
+                     `Period 1${visibleTiming? "\n09:30AM 10:10AM": ""}`,
+                     `Period 2${visibleTiming? "\n10:10AM 10:40AM": ""}`,
+                     "Break",
+                     `Period 3${visibleTiming? "\n10:50AM 11:30AM": ""}`,
+                     `Period 4${visibleTiming? "\n11:30AM 12:10PM": ""}`,
+                     "Break",
+                     `Period 5${visibleTiming? "\n01:10PM 01:50PM": ""}`,
+                     `Period 6${visibleTiming? "\n01:50PM 02:30PM": ""}`,
+                     "Break",
+                     `Period 7${visibleTiming? "\n02:40PM 03:20PM": ""}`,
+                     `Period 8${visibleTiming? "\n03:20PM 04:00PM": ""}`
+                    ];
 
     const schedule = Array.from({ length: 6 }, () => Array(12).fill(null));
 
@@ -632,10 +698,14 @@ function CreateTimetableSheet(workbook, sheetName, data, reservedPeriodCount) {
     const formattedArray = formatWeeklySchedule(data);
     const sheet = workbook.addWorksheet(sheetName);
 
+    sheet.addRow([sheetName]);
+    const row = sheet.getRow(1);
+    row.font = { size: 28, bold: true };
+    row.commit();
     formattedArray.forEach(row => sheet.addRow(row));
     sheet.getCell("A7").value = reservedPeriodCount;
 
-    ['D1:D6', 'G1:G6', 'J1:J6', 'A7:L7'].forEach(range => sheet.mergeCells(range));
+    ['A1:L1', 'D2:D6', 'G2:G6', 'J2:J6', 'A7:L7'].forEach(range => sheet.mergeCells(range));
 
     sheet.columns = formattedArray[0].map((_, index) => ({
         width: index !== 0 && index % 3 === 0 ? 8 : 18
