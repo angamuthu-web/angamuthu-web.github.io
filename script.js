@@ -350,7 +350,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         let content = `<span>Download As <input type="radio" name="downloadAs" value="excel" checked> Excel <input type="radio" name="downloadAs" value="pdf"> pdf</span>`;
         const contentEl = CreateElement("div", null, content);
         contentEl.append(downloadPopupContent());
-        const selectedNames = await popup.Custom("Downlods", contentEl.innerHTML, [{ label: "Download", type: "ok", value: DownloadOption }, { label: "Cancle", type: "ok", value: false }]);
+        const selectedNames = await popup.Custom("Downlods", contentEl, [{ label: "Download", type: "ok", value: DownloadOption }, { label: "Cancle", type: "ok", value: false }]);
         if (!selectedNames) return;
         if (!selectedNames.classes.length && !selectedNames.teachers.length && !selectedNames.other.length) return popup.Error("No time schedule available for download at this moment.");
         showLoadingOverlay();
