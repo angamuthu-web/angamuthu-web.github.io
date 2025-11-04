@@ -39,7 +39,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         for (const tName in data) {
             for (const subject in data[tName]) {
                 htmlElement ? string += `<span data-subject="${subject}" >${subject}(${tName}): ${data[tName][subject]}</span>`
-                            : string += `${subject}(${tName}): ${data[tName][subject]}`;
+                            : string += `${subject}(${tName}): ${data[tName][subject]} `;
             }
         }
         return string;
@@ -367,14 +367,18 @@ document.addEventListener("DOMContentLoaded", async () => {
             if(selectedNames.downloadAs === "excel") {
                 CreateTimetableSheet(document, name, school.GetTeacher(name).GetTimeTable(), formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false));
             } else if(selectedNames.downloadAs === "pdf") {
-                timetables.push({title: name, timetable: formatWeeklySchedule(school.GetTeacher(name).GetTimeTable(), false)});
+                let timetable = formatWeeklySchedule(school.GetTeacher(name).GetTimeTable(), false);
+                timetable[6][0] = `${formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false)}: = ${school.GetTeacher(name).GetTotalReservedPeriod()}`;
+                timetables.push({title: name, timetable: timetable});
             }
         });
         selectedNames["classes"].forEach(name => {
             if(selectedNames.downloadAs === "excel") {
             CreateTimetableSheet(document, name, school.GetClass(name).GetTimeTable(), formatPeriods(school.GetPeroidCountOfTeachers(name), "", false));
             } else if(selectedNames.downloadAs === "pdf") {
-                timetables.push({title: name, timetable: formatWeeklySchedule(school.GetClass(name).GetTimeTable(), false)});
+                let timetable = formatWeeklySchedule(school.GetClass(name).GetTimeTable(), false);
+                timetable[6][0] = formatPeriods(school.GetPeroidCountOfTeachers(name), "", false);
+                timetables.push({title: name, timetable: timetable});
             }
         });
         selectedNames["other"].forEach(name => {
@@ -399,6 +403,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     table.timetable[0][3] = { content: 'Break', rowSpan: 6 };
                     table.timetable[0][6] = { content: 'Break', rowSpan: 6 };
                     table.timetable[0][9] = { content: 'Break', rowSpan: 6 };
+                    table.timetable[6][0] = { content: table.timetable[6][0], colSpan: 12 };
 
                     document.autoTable({
                         startY: y + 10,
@@ -659,7 +664,7 @@ function formatWeeklySchedule(array, visibleTiming = true) {
                      `Period 8${visibleTiming? "\n03:20PM 04:00PM": ""}`
                     ];
 
-    const schedule = Array.from({ length: 6 }, () => Array(12).fill(null));
+    const schedule = Array.from({ length: 7 }, () => Array(12).fill(null));
 
     schedule[0] = headers;
     days.forEach((day, index) => {
