@@ -347,7 +347,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const download = async () => {
         // Create workbook
         if (state === "edit") return popup.Error("Download unavailable while in edit mode. Please exit edit mode to proceed.");
-        let content = `<span>Download As <input type="radio" name="downloadAs" value="excel" checked> Excel <input type="radio" name="downloadAs" value="pdf"> pdf</span>`;
+        let content = `<span>Download As <input type="radio" name="downloadAs" value="excel" > Excel <input type="radio" name="downloadAs" value="pdf" checked> pdf</span>`;
         const contentEl = CreateElement("div", null, content);
         contentEl.append(downloadPopupContent());
         const selectedNames = await popup.Custom("Downlods", contentEl, [{ label: "Download", type: "ok", value: DownloadOption }, { label: "Cancle", type: "ok", value: false }]);
