@@ -367,8 +367,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             if(selectedNames.downloadAs === "excel") {
                 CreateTimetableSheet(document, name, school.GetTeacher(name).GetTimeTable(), formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false));
             } else if(selectedNames.downloadAs === "pdf") {
-                let timetable = formatWeeklySchedule(school.GetTeacher(name).GetTimeTable(), false);
-                timetable[6][0] = `${formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false)}: = ${school.GetTeacher(name).GetTotalReservedPeriod()}`;
+                let tempTimetable = formatWeeklySchedule(school.GetTeacher(name).GetTimeTable(), false);
+                tempTimetable[6][0] = `${formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false)}: = ${school.GetTeacher(name).GetTotalReservedPeriod()}`;
+                let title = [["CHSS CHITTOOR"], [`${name} - TimeTable`]];
+                let timetable = [...title, ...tempTimetable];
                 timetables.push({title: name, timetable: timetable});
             }
         });
@@ -376,8 +378,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             if(selectedNames.downloadAs === "excel") {
             CreateTimetableSheet(document, name, school.GetClass(name).GetTimeTable(), formatPeriods(school.GetPeroidCountOfTeachers(name), "", false));
             } else if(selectedNames.downloadAs === "pdf") {
-                let timetable = formatWeeklySchedule(school.GetClass(name).GetTimeTable(), false);
-                timetable[6][0] = formatPeriods(school.GetPeroidCountOfTeachers(name), "", false);
+                let tempTimetable = formatWeeklySchedule(school.GetClass(name).GetTimeTable(), false);
+                tempTimetable[6][0] = formatPeriods(school.GetPeroidCountOfTeachers(name), "", false);
+                let title = [["CHSS CHITTOOR"], [`${name} - TimeTable`]];
+                let timetable = [...title, ...tempTimetable];
+                console.log(timetable);
                 timetables.push({title: name, timetable: timetable});
             }
         });
@@ -397,19 +402,10 @@ document.addEventListener("DOMContentLoaded", async () => {
             case "pdf":
                 let y = 20;
                 timetables.forEach((table, index) => {
-                    document.setFontSize(16);
-                    document.text(table.title, 14, y);
-                    
-                    table.timetable[0][3] = { content: 'Break', rowSpan: 6 };
-                    table.timetable[0][6] = { content: 'Break', rowSpan: 6 };
-                    table.timetable[0][9] = { content: 'Break', rowSpan: 6 };
-                    table.timetable[6][0] = { content: table.timetable[6][0], colSpan: 12 };
+                    // document.setFontSize(16);
+                    // document.text(table.title, 14, y);
 
-                    document.autoTable({
-                        startY: y + 10,
-                        head: [table.timetable[0]],
-                        body: table.timetable.slice(1),
-                        styles: {
+                    const styles = {
                             halign: 'center',
                             valign: 'middle',
                             lineWidth: 0.5,
@@ -417,17 +413,45 @@ document.addEventListener("DOMContentLoaded", async () => {
                             cellPadding: 4,
                             fontSize: 10,
                             textColor: 0,
-                            overflow: 'visible',
-                        },
-                        headStyles: {
+                            overflow: 'linebreak'};
+                    const headStyles = {
                             halign: 'center',
                             valign: 'middle',
                             fillColor: false,
-                            textColor: 0
-                        },
-                        alternateRowStyles: {
-                            fillColor: false
-                        }
+                            textColor: 0}
+                    const alternateRowStyles = {fillColor: false}
+                    
+                    table.timetable[0][0] = { content: table.timetable[0][0], colSpan: 12 };
+                    table.timetable[1][0] = { content: table.timetable[1][0], colSpan: 12 };
+                    table.timetable[2][3] = { content: 'Break', rowSpan: 6 };
+                    table.timetable[2][6] = { content: 'Break', rowSpan: 6 };
+                    table.timetable[2][9] = { content: 'Break', rowSpan: 6 };
+                    table.timetable[8][0] = { content: table.timetable[8][0], colSpan: 12 };
+
+                    document.autoTable({
+                        startY: y + 10,
+                        head: [table.timetable[0]],
+                        body: "",
+                        styles: styles,
+                        headStyles: headStyles,
+                        alternateRowStyles: alternateRowStyles
+                    });
+                    document.autoTable({
+                        startY: y + 22,
+                        head: [table.timetable[1]],
+                        body: "",
+                        styles: styles,
+                        headStyles: headStyles,
+                        alternateRowStyles: alternateRowStyles
+                    });
+
+                    document.autoTable({
+                        startY: y + 34.2,
+                        head: [table.timetable[2]],
+                        body: table.timetable.slice(3),
+                        styles: styles,
+                        headStyles: headStyles,
+                        alternateRowStyles: alternateRowStyles
                     });
 
                     if (index < timetables.length - 1) {
@@ -703,20 +727,24 @@ function CreateTimetableSheet(workbook, sheetName, data, reservedPeriodCount) {
     const formattedArray = formatWeeklySchedule(data);
     const sheet = workbook.addWorksheet(sheetName);
 
-    sheet.addRow([sheetName]);
+    sheet.addRow(["CHSS CHITTOOR"]);
+    sheet.addRow([`${sheetName} - TimeTable`]);
     const row = sheet.getRow(1);
+    const row2 = sheet.getRow(2);
     row.font = { size: 28, bold: true };
     row.commit();
+    row2.font = { size: 28, bold: true };
+    row2.commit();
     formattedArray.forEach(row => sheet.addRow(row));
-    sheet.getCell("A7").value = reservedPeriodCount;
+    sheet.getCell("A8").value = reservedPeriodCount;
 
-    ['A1:L1', 'D2:D6', 'G2:G6', 'J2:J6', 'A7:L7'].forEach(range => sheet.mergeCells(range));
+    ['A1:L1', 'A2:L2', 'D3:D6', 'G3:G6', 'J3:J6', 'A8:L8'].forEach(range => sheet.mergeCells(range));
 
     sheet.columns = formattedArray[0].map((_, index) => ({
         width: index !== 0 && index % 3 === 0 ? 8 : 18
     }));
 
-    styleCellRange(sheet, 1, 7, 1, 12);
+    styleCellRange(sheet, 1, 8, 1, 12);
 }
 
 function CreateFreePeriodSheet(workbook, sheetName, data) {
