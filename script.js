@@ -388,8 +388,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         selectedNames["other"].forEach(name => {
             switch(name) {
-                case "moreDetails":
-                    CreateFreePeriodSheet(document, "Free Period Details", Object.values(school.GetTeachers()));
+                case "Free Period details":
+                    if(selectedNames.downloadAs === "excel") {
+                        CreateFreePeriodSheet(document, "Free_Period_Details", Object.values(school.GetTeachers()));
+                    } else if(selectedNames.downloadAs === "pdf") {
+                        selectedNames.downloadAs = null;
+                        return popup.Info("Feature unavailable: Free Period Details for PDF download is currently under development.");
+                    }
+                    break;
             }
         });
 
@@ -412,6 +418,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                             lineColor: [0, 0, 0],
                             cellPadding: 4,
                             fontSize: 10,
+                            fontStyle: "bold",
                             textColor: 0,
                             overflow: 'linebreak'};
                     const headStyles = {
