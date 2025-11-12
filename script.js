@@ -45,19 +45,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         return string;
     }
 
-    const formatCell = val =>
-        typeof val === "object"
-            ? Array.isArray(val)
-                ? val.join(", ")
-                : val ? `<span>${val.subject}</span><span>${val.teacher}</span>` : ""
-            : val ?? "";
+    const formatCell = (type, val, extras = true) => {
+        if(!val) return "";
+        return type === "class"
+            ? extras
+                ? `<span>${val.subject}</span><span>${val.teacher}</span>`
+                : `<span>${val.subject}</span>`
+            : extras
+                ? `<span>${cToString(val, "class")}</span><span>${cToString(val, "subject")}</span>`
+                : `<span>${cToString(val, "class")}</span>`;
+    }
 
-    const displayTimeTable = (table) => {
+    const displayTimeTable = (table, type) => {
         TimeTable.Clear();
         table.forEach((row, day) => {
             row.forEach((cell, period) => {
-                TimeTable.ChangeCellValue(day, period, formatCell(cell));
-                TimeTable.SetCellAttr(day, period, "data-subject", cell?.subject);
+                TimeTable.ChangeCellValue(day, period, formatCell(type, cell));
+                if(type === "class") TimeTable.SetCellAttr(day, period, "data-subject", cell?.subject);
             });
         });
     }
@@ -139,7 +143,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const enterEditMode = async () => {
         state = "edit";
         schoolClone = school.Clone();
-        displayTimeTable(schoolClone.GetClass(className).GetTimeTable());
+        displayTimeTable(schoolClone.GetClass(className).GetTimeTable(), "class");
 
         document.getElementById("TeacherTimeTableContainer").classList.add("editing");
         el.customizeBtn.textContent = "Update";
@@ -180,7 +184,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const applyUpdates = () => {
         school = schoolClone.Clone();
-        displayTimeTable(school.GetClass(className).GetTimeTable());
+        displayTimeTable(school.GetClass(className).GetTimeTable(), "class");
 
         exitEditMode();
     };
@@ -191,7 +195,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             if (!confirm) return;
         }
 
-        displayTimeTable(school.GetClass(className).GetTimeTable());
+        displayTimeTable(school.GetClass(className).GetTimeTable(), "class");
 
         exitEditMode();
     };
@@ -280,7 +284,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         el.table.subtitle.textContent = `(${classObj.GetTutor().name})`;
         TimeTable.Clear();
         school.GenerateTimetable(classObj, el.reserveFP.checked);
-        displayTimeTable(classObj.GetTimeTable());
+        displayTimeTable(classObj.GetTimeTable(), "class");
         el.periodCount.innerHTML = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
 
         el.customizeBtn.style.display = "block";
@@ -307,7 +311,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         el.table.title.textContent = teacherName;
         el.table.subtitle.textContent = `(${teacher.TutorFor().class})`;
         TimeTable.Clear();
-        displayTimeTable(teacher.GetTimeTable());
+        displayTimeTable(teacher.GetTimeTable(), "teacher");
         el.periodCount.innerHTML = formatPeriods(school.GetTeacher(teacherName).GetReservedPeriodCountAll(), "");
     };
 
@@ -332,7 +336,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         el.table.title.textContent = className;
         el.table.subtitle.textContent = `(${classObj.GetTutor().name})`;
         TimeTable.Clear();
-        displayTimeTable(classObj.GetTimeTable());
+        displayTimeTable(classObj.GetTimeTable(), "class");
         el.periodCount.innerHTML = formatPeriods(school.GetPeroidCountOfTeachers(className), "");
 
         el.customizeBtn.style.display = "block";
@@ -365,9 +369,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         let timetables = [];
         selectedNames["teachers"].forEach(name => {
             if(selectedNames.downloadAs === "excel") {
-                CreateTimetableSheet(document, name, school.GetTeacher(name).GetTimeTable(), formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false));
+                CreateTimetableSheet(document, name, school.GetTeacher(name).GetTimeTable(), formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false), "teacher");
             } else if(selectedNames.downloadAs === "pdf") {
-                let tempTimetable = formatWeeklySchedule(school.GetTeacher(name).GetTimeTable(), false);
+                let tempTimetable = formatWeeklySchedule(school.GetTeacher(name).GetTimeTable(), "teacher", true);
                 tempTimetable[6][0] = `${formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false)}: = ${school.GetTeacher(name).GetTotalReservedPeriod()}`;
                 let title = [["CHSS CHITTOOR"], [`${name} - TimeTable`]];
                 let timetable = [...title, ...tempTimetable];
@@ -376,13 +380,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         selectedNames["classes"].forEach(name => {
             if(selectedNames.downloadAs === "excel") {
-            CreateTimetableSheet(document, name, school.GetClass(name).GetTimeTable(), formatPeriods(school.GetPeroidCountOfTeachers(name), "", false));
+                CreateTimetableSheet(document, name, school.GetClass(name).GetTimeTable(), formatPeriods(school.GetPeroidCountOfTeachers(name), "", false), "class");
             } else if(selectedNames.downloadAs === "pdf") {
-                let tempTimetable = formatWeeklySchedule(school.GetClass(name).GetTimeTable(), false);
+                let tempTimetable = formatWeeklySchedule(school.GetClass(name).GetTimeTable(), "class", true);
                 tempTimetable[6][0] = formatPeriods(school.GetPeroidCountOfTeachers(name), "", false);
                 let title = [["CHSS CHITTOOR"], [`${name} - TimeTable`]];
                 let timetable = [...title, ...tempTimetable];
-                console.log(timetable);
                 timetables.push({title: name, timetable: timetable});
             }
         });
@@ -410,13 +413,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 timetables.forEach((table, index) => {
                     // document.setFontSize(16);
                     // document.text(table.title, 14, y);
-
                     const styles = {
                             halign: 'center',
                             valign: 'middle',
                             lineWidth: 0.5,
                             lineColor: [0, 0, 0],
-                            cellPadding: 4,
+                            cellPadding: 2,
                             fontSize: 10,
                             fontStyle: "bold",
                             textColor: 0,
@@ -436,7 +438,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     table.timetable[8][0] = { content: table.timetable[8][0], colSpan: 12 };
 
                     document.autoTable({
-                        startY: y + 10,
+                        startY: y,
                         head: [table.timetable[0]],
                         body: "",
                         styles: styles,
@@ -444,7 +446,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         alternateRowStyles: alternateRowStyles
                     });
                     document.autoTable({
-                        startY: y + 22,
+                        startY: y + 8,
                         head: [table.timetable[1]],
                         body: "",
                         styles: styles,
@@ -453,7 +455,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     });
 
                     document.autoTable({
-                        startY: y + 34.2,
+                        startY: y + 16,
                         head: [table.timetable[2]],
                         body: table.timetable.slice(3),
                         styles: styles,
@@ -679,20 +681,33 @@ function sheetToJson(worksheet) {
 
 }
 
-function formatWeeklySchedule(array, visibleTiming = true) {
+const cToString = (val, key) => {
+    if(Array.isArray(val)) {
+        let temp = [];
+        val.forEach(element => {
+            temp.push(element[key]);
+        });
+        return temp;
+    } else if(typeof val === "object") {
+        return val[key];
+    }
+    return val;
+}
+
+function formatWeeklySchedule(array, type, visibleTiming = true) {
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
     const headers = [null, 
                      `Period 1${visibleTiming? "\n09:30AM 10:10AM": ""}`,
-                     `Period 2${visibleTiming? "\n10:10AM 10:40AM": ""}`,
+                     `Period 2${visibleTiming? "\n10:10AM 10:50AM": ""}`,
                      "Break",
-                     `Period 3${visibleTiming? "\n10:50AM 11:30AM": ""}`,
-                     `Period 4${visibleTiming? "\n11:30AM 12:10PM": ""}`,
+                     `Period 3${visibleTiming? "\n11:00AM 11:40AM": ""}`,
+                     `Period 4${visibleTiming? "\n11:40AM 12:20PM": ""}`,
                      "Break",
-                     `Period 5${visibleTiming? "\n01:10PM 01:50PM": ""}`,
-                     `Period 6${visibleTiming? "\n01:50PM 02:30PM": ""}`,
+                     `Period 5${visibleTiming? "\n01:00PM 02:00PM": ""}`,
+                     `Period 6${visibleTiming? "\n02:00PM 02:40PM": ""}`,
                      "Break",
-                     `Period 7${visibleTiming? "\n02:40PM 03:20PM": ""}`,
-                     `Period 8${visibleTiming? "\n03:20PM 04:00PM": ""}`
+                     `Period 7${visibleTiming? "\n02:50PM 03:30PM": ""}`,
+                     `Period 8${visibleTiming? "\n03:30PM 04:10PM": ""}`
                     ];
 
     const schedule = Array.from({ length: 7 }, () => Array(12).fill(null));
@@ -707,7 +722,8 @@ function formatWeeklySchedule(array, visibleTiming = true) {
         for (let col = 1; col < 12; col++) {
             if (col % 3 === 0) continue;
             const cell = array[row - 1][periodIndex++];
-            schedule[row][col] = typeof cell === "string" ? cell : Array.isArray(cell) ? cell.toString() : cell?.subject || null;
+            const keys = type === "class" ? ["subject", "teacher"] : ["class", "subject"];
+            schedule[row][col] = cell ? `${cToString(cell, keys[0])}\n(${cToString(cell, keys[1])})` :  null;
         }
     }
 
@@ -730,8 +746,8 @@ function formatMoreDetails(teacher) {
     return {name: teacher.Name(), totalPeriod: teacher.GetTotalReservedPeriod(), freePeriods: freePeriodsArr};
 }
 
-function CreateTimetableSheet(workbook, sheetName, data, reservedPeriodCount) {
-    const formattedArray = formatWeeklySchedule(data);
+function CreateTimetableSheet(workbook, sheetName, data, reservedPeriodCount, type) {
+    const formattedArray = formatWeeklySchedule(data, type);
     const sheet = workbook.addWorksheet(sheetName);
 
     sheet.addRow(["CHSS CHITTOOR"]);
@@ -743,15 +759,15 @@ function CreateTimetableSheet(workbook, sheetName, data, reservedPeriodCount) {
     row2.font = { size: 28, bold: true };
     row2.commit();
     formattedArray.forEach(row => sheet.addRow(row));
-    sheet.getCell("A8").value = reservedPeriodCount;
+    sheet.getCell("A9").value = reservedPeriodCount;
 
-    ['A1:L1', 'A2:L2', 'D3:D6', 'G3:G6', 'J3:J6', 'A8:L8'].forEach(range => sheet.mergeCells(range));
+    ['A1:L1', 'A2:L2', 'D3:D8', 'G3:G8', 'J3:J8', 'A9:L9'].forEach(range => sheet.mergeCells(range));
 
     sheet.columns = formattedArray[0].map((_, index) => ({
         width: index !== 0 && index % 3 === 0 ? 8 : 18
     }));
 
-    styleCellRange(sheet, 1, 8, 1, 12);
+    styleCellRange(sheet, 1, 9, 1, 12);
 }
 
 function CreateFreePeriodSheet(workbook, sheetName, data) {

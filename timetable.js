@@ -26,26 +26,27 @@ class Teacher {
     }
 
     ReservePeriod(day, period, subject, className) {
+        const cls = {subject: subject, class: className}
         if (this.#reservedPeriod[day][period]) {
             let combineClass = [];
-            if (typeof this.#reservedPeriod[day][period] === "object") {
+            if (Array.isArray(this.#reservedPeriod[day][period])) {
                 this.#reservedPeriod[day][period].forEach(clss => {
                     combineClass.push(clss);
                 });
             } else {
                 combineClass.push(this.#reservedPeriod[day][period]);
             }
-            combineClass.push(className);
+            combineClass.push(cls);
             this.#reservedPeriod[day][period] = combineClass;
         } else {
-            this.#reservedPeriod[day][period] = className;
+            this.#reservedPeriod[day][period] = cls;
         }
         this.#reservedPeriodCount[subject][className]++;
         this.#totalPeriod++;
     }
 
     UneservePeriod(day, period, subject, className) {
-        if (typeof this.#reservedPeriod[day][period] === "object") {
+        if (Array.isArray(this.#reservedPeriod[day][period])) {
             let classIndex = this.#reservedPeriod[day][period].indexOf(className);
             this.#reservedPeriod[day][period].splice(classIndex, 1);
 
