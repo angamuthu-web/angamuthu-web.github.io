@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 ? `<span>${val.subject}</span><span>${val.teacher}</span>`
                 : `<span>${val.subject}</span>`
             : extras
-                ? `<span>${cToString(val, "class")}</span><span>${cToString(val, "subject")}</span>`
+                ? `<span>${cToString(val, "class")}</span><span>${uniqueArray(cToString(val, "subject"))}</span>`
                 : `<span>${cToString(val, "class")}</span>`;
     }
 
@@ -679,6 +679,13 @@ function sheetToJson(worksheet) {
 
     return json;
 
+}
+
+function uniqueArray(arr) {
+    if(typeof arr === "string") {
+        return arr;
+    }
+  return [...new Set(arr)];
 }
 
 const cToString = (val, key) => {
