@@ -337,7 +337,8 @@ footer {
 }
 
 input.feature,
-select.feature {
+select.feature,
+input[type="text"] {
     display: block;
     width: 100%;
     padding: 12px 18px;

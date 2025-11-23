@@ -357,34 +357,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         const selectedNames = await popup.Custom("Downlods", contentEl, [{ label: "Download", type: "ok", value: DownloadOption }, { label: "Cancle", type: "ok", value: false }]);
         if (!selectedNames) return;
         if (!selectedNames.classes.length && !selectedNames.teachers.length && !selectedNames.other.length) return popup.Error("No time schedule available for download at this moment.");
+        let _document;
+        const tableName = await popup.Custom("School Name", `<input type="text" id="schoolName">`, [{ label: "Ok", type: "ok", value: () => {return document.getElementById("schoolName").value} }]);
         showLoadingOverlay();
-        let document;
         if (selectedNames.downloadAs === "excel") {
-            document = new ExcelJS.Workbook();
+            _document = new ExcelJS.Workbook();
         } else if(selectedNames.downloadAs === "pdf") {
             const { jsPDF } = window.jspdf;
-            document = new jsPDF({orientation: "landscape", format: "a4"});
+            _document = new jsPDF({orientation: "landscape", format: "a4"});
         }
 
         let timetables = [];
         selectedNames["teachers"].forEach(name => {
             if(selectedNames.downloadAs === "excel") {
-                CreateTimetableSheet(document, name, school.GetTeacher(name).GetTimeTable(), formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false), "teacher");
+                CreateTimetableSheet(_document, name, school.GetTeacher(name).GetTimeTable(), formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false), "teacher", tableName);
             } else if(selectedNames.downloadAs === "pdf") {
                 let tempTimetable = formatWeeklySchedule(school.GetTeacher(name).GetTimeTable(), "teacher", true);
                 tempTimetable[6][0] = `${formatPeriods(school.GetTeacher(name).GetReservedPeriodCountAll(), "", false)}: = ${school.GetTeacher(name).GetTotalReservedPeriod()}`;
-                let title = [["CHSS CHITTOOR"], [`${name} - TimeTable`]];
+                let title = [[`${tableName ?? "TiemTable"}`], [`${name} - TimeTable`]];
                 let timetable = [...title, ...tempTimetable];
                 timetables.push({title: name, timetable: timetable});
             }
         });
         selectedNames["classes"].forEach(name => {
             if(selectedNames.downloadAs === "excel") {
-                CreateTimetableSheet(document, name, school.GetClass(name).GetTimeTable(), formatPeriods(school.GetPeroidCountOfTeachers(name), "", false), "class");
+                CreateTimetableSheet(_document, name, school.GetClass(name).GetTimeTable(), formatPeriods(school.GetPeroidCountOfTeachers(name), "", false), "class", tableName);
             } else if(selectedNames.downloadAs === "pdf") {
                 let tempTimetable = formatWeeklySchedule(school.GetClass(name).GetTimeTable(), "class", true);
                 tempTimetable[6][0] = formatPeriods(school.GetPeroidCountOfTeachers(name), "", false);
-                let title = [["CHSS CHITTOOR"], [`${name} - TimeTable`]];
+                let title = [[`${tableName ?? "TiemTable"}`], [`${name} - TimeTable`]];
                 let timetable = [...title, ...tempTimetable];
                 timetables.push({title: name, timetable: timetable});
             }
@@ -393,7 +394,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             switch(name) {
                 case "Free Period details":
                     if(selectedNames.downloadAs === "excel") {
-                        CreateFreePeriodSheet(document, "Free_Period_Details", Object.values(school.GetTeachers()));
+                        CreateFreePeriodSheet(_document, "Free_Period_Details", Object.values(school.GetTeachers()));
                     } else if(selectedNames.downloadAs === "pdf") {
                         selectedNames.downloadAs = null;
                         return popup.Info("Feature unavailable: Free Period Details for PDF download is currently under development.");
@@ -404,7 +405,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         switch(selectedNames.downloadAs) {
             case "excel":
-                const buffer = await document.xlsx.writeBuffer();
+                const buffer = await _document.xlsx.writeBuffer();
                 const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
                 TriggerDownload(blob, "Timetables.xlsx");
                 break;
@@ -437,7 +438,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     table.timetable[2][9] = { content: 'Break', rowSpan: 6 };
                     table.timetable[8][0] = { content: table.timetable[8][0], colSpan: 12 };
 
-                    document.autoTable({
+                    _document.autoTable({
                         startY: y,
                         head: [table.timetable[0]],
                         body: "",
@@ -445,7 +446,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         headStyles: headStyles,
                         alternateRowStyles: alternateRowStyles
                     });
-                    document.autoTable({
+                    _document.autoTable({
                         startY: y + 8,
                         head: [table.timetable[1]],
                         body: "",
@@ -454,7 +455,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                         alternateRowStyles: alternateRowStyles
                     });
 
-                    document.autoTable({
+                    _document.autoTable({
                         startY: y + 16,
                         head: [table.timetable[2]],
                         body: table.timetable.slice(3),
@@ -464,11 +465,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                     });
 
                     if (index < timetables.length - 1) {
-                        document.addPage();
+                        _document.addPage();
                         y = 20;
                     }
                 });
-                document.save();
+                _document.save();
                 break;
         }
         
@@ -730,7 +731,7 @@ function formatWeeklySchedule(array, type, visibleTiming = true) {
             if (col % 3 === 0) continue;
             const cell = array[row - 1][periodIndex++];
             const keys = type === "class" ? ["subject", "teacher"] : ["class", "subject"];
-            schedule[row][col] = cell ? `${cToString(cell, keys[0])}\n(${cToString(cell, keys[1])})` :  null;
+            schedule[row][col] = cell ? `${cToString(cell, keys[0])}\n${cToString(cell, keys[1])}` :  null;
         }
     }
 
@@ -753,11 +754,11 @@ function formatMoreDetails(teacher) {
     return {name: teacher.Name(), totalPeriod: teacher.GetTotalReservedPeriod(), freePeriods: freePeriodsArr};
 }
 
-function CreateTimetableSheet(workbook, sheetName, data, reservedPeriodCount, type) {
+function CreateTimetableSheet(workbook, sheetName, data, reservedPeriodCount, type, tableTitle) {
     const formattedArray = formatWeeklySchedule(data, type);
     const sheet = workbook.addWorksheet(sheetName);
 
-    sheet.addRow(["CHSS CHITTOOR"]);
+    sheet.addRow([`${tableTitle ?? "TimeTable"}`]);
     sheet.addRow([`${sheetName} - TimeTable`]);
     const row = sheet.getRow(1);
     const row2 = sheet.getRow(2);
