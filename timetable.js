@@ -47,7 +47,7 @@ class Teacher {
 
     UneservePeriod(day, period, subject, className) {
         if (Array.isArray(this.#reservedPeriod[day][period])) {
-            let classIndex = this.#reservedPeriod[day][period].indexOf(className);
+            let classIndex = this.#reservedPeriod[day][period].findIndex(_subject => _subject.class === className);
             this.#reservedPeriod[day][period].splice(classIndex, 1);
 
             if (this.#reservedPeriod[day][period].length === 1) this.#reservedPeriod[day][period] = this.#reservedPeriod[day][period][0];
